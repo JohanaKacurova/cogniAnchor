@@ -25,7 +25,7 @@ export default function MyDayScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [currentTime, setCurrentTime] = useState(new Date());
   const router = useRouter();
-  const { name: patientName } = usePatient();
+  const { patient } = usePatient();
   const { getEntriesForDate } = useSchedule();
   const { contacts } = useContacts();
   const todayStr = currentTime.toISOString().slice(0, 10);
@@ -141,7 +141,7 @@ export default function MyDayScreen() {
           </View>
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <Text style={[styles.greeting, { color: getCalmModeTextColor(), fontSize: scaleText(28), fontWeight: '700', marginBottom: scaleText(2) }]}> 
-              {getGreeting()}, {patientName}!
+              {getGreeting()}, {patient.name}!
             </Text>
             <Text style={[styles.date, { color: calmMode ? '#B0B0B0' : currentTheme.colors.primary, fontSize: scaleText(18), fontWeight: '600' }]}> 
               Today is {formatDate(currentTime)}

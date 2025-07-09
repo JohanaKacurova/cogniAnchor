@@ -7,16 +7,13 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePuzzle, PuzzleProvider, PuzzlePiece, PuzzleState } from '../contexts/PuzzleContext';
 import { speak } from '../core/utils/tts';
 import * as Haptics from 'expo-haptics';
+import puzzlePatternsConfig from '../../config/puzzle-patterns.json';
 
 // Example pattern: flower (center + 5 petals)
-const PATTERN_SHAPES: { type: ShapeType; label: string; color: string }[] = [
-  { type: 'circle', label: 'Center', color: '#FFD700' },
-  { type: 'circle', label: 'Petal 1', color: '#FF69B4' },
-  { type: 'circle', label: 'Petal 2', color: '#87CEEB' },
-  { type: 'circle', label: 'Petal 3', color: '#98FB98' },
-  { type: 'circle', label: 'Petal 4', color: '#9370DB' },
-  { type: 'circle', label: 'Petal 5', color: '#FFA07A' },
-];
+const PATTERN_SHAPES: { type: ShapeType; label: string; color: string }[] = puzzlePatternsConfig.patternShapes.map((shape: any) => ({
+  ...shape,
+  type: shape.type as ShapeType
+}));
 
 function getInitialPatternPieces(): PuzzlePiece[] {
   // All petals start as draggable, center is fixed

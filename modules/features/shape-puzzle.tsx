@@ -6,9 +6,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePuzzle, PuzzleProvider, PuzzlePiece, PuzzleState } from '../contexts/PuzzleContext';
 import { speak } from '../core/utils/tts';
 import * as Haptics from 'expo-haptics';
+import puzzleShapesConfig from '../../config/puzzle-shapes.json';
 
-const SHAPES: ShapeType[] = ['circle', 'square', 'triangle', 'star'];
-const COLORS = ['#4682B4', '#9370DB', '#F4A460', '#FF69B4'];
+const SHAPES = puzzleShapesConfig.shapes as ShapeType[];
+const COLORS = puzzleShapesConfig.colors;
 
 function getInitialPieces(): PuzzlePiece[] {
   // Randomize initial positions for draggable shapes

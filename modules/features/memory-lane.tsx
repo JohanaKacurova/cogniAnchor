@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import memoryCategories from '../../config/memory-categories.json';
 
 interface Memory {
   id: string;
@@ -92,13 +93,19 @@ const sampleMemories: Memory[] = [
   },
 ];
 
-const categories = [
-  { id: 'all', name: 'All Memories', icon: Heart, color: '#4682B4' },
-  { id: 'people', name: 'People', icon: Users, color: '#FF69B4' },
-  { id: 'places', name: 'Places', icon: MapPin, color: '#32CD32' },
-  { id: 'pets', name: 'Pets', icon: Heart, color: '#FF8C00' },
-  { id: 'life-events', name: 'Life Events', icon: Calendar, color: '#9370DB' },
-];
+const categories = memoryCategories;
+
+const ICONS: Record<string, any> = { Heart, Users, MapPin, Calendar };
+
+const renderCategoryIcon = (cat: any) => {
+  if (ICONS[cat.icon]) {
+    return ICONS[cat.icon]({ size: 20, color: cat.color });
+  }
+  if (typeof cat.icon === 'string') {
+    return <Text style={{ fontSize: 20 }}>{cat.icon}</Text>;
+  }
+  return <Text style={{ fontSize: 20 }}>❓</Text>;
+};
 
 type TabRoute = '/' | '/schedule' | '/contacts' | '/profile' | '/settings';
 
@@ -360,11 +367,7 @@ export default function MemoryLaneScreen() {
                   onPress={() => setSelectedCategory(category.id)}
                   activeOpacity={0.8}
                 >
-                  <IconComponent 
-                    size={scaleText(24)} 
-                    color={isSelected ? '#FFFFFF' : category.color} 
-                    strokeWidth={2} 
-                  />
+                  {renderCategoryIcon(category)}
                   <Text style={[
                     styles.categoryTabText,
                     { color: isSelected ? '#FFFFFF' : (calmMode ? '#C0C0C0' : category.color) }

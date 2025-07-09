@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, cancelAnimation } from 'react-native-reanimated';
+import waveformConfig from '../../../config/audio-waveform.json';
 
 export interface AudioWaveformProps {
   isPlaying: boolean;
@@ -24,7 +25,7 @@ const AudioWaveform: React.FC<AudioWaveformProps> = React.memo(function AudioWav
   scaleText,
   calmMode,
 }: AudioWaveformProps) {
-  const barCount = typeof 25 === 'number' && !isNaN(25) ? 25 : 20;
+  const barCount = typeof waveformConfig.barCount === 'number' && !isNaN(waveformConfig.barCount) ? waveformConfig.barCount : 20;
   const [bars, setBars] = useState<BarData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Each bar gets its own shared value for animation

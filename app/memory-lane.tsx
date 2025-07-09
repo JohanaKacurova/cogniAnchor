@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import Voice from '@react-native-community/voice';
 import AudioWaveform from '../modules/core/components/AudioWaveform';
+import memoriesConfig from '../config/memories.json';
 
 interface Memory {
   id: string;
@@ -33,76 +34,20 @@ interface Memory {
   narrator: string;
 }
 
-const sampleMemories: Memory[] = [
-  {
-    id: '1',
-    title: 'Family Trip to the Lake',
-    category: 'places',
-    date: 'Summer 1985',
-    image: 'https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=800',
-    voiceClip: 'voice_lake_trip.mp3',
-    description: 'This was the summer we all went to Lake Tahoe together. You loved feeding the ducks with little Sarah.',
-    narrator: 'Your daughter Sarah',
-  },
-  {
-    id: '2',
-    title: 'Wedding Day with Robert',
-    category: 'life-events',
-    date: 'June 12, 1962',
-    image: 'https://images.pexels.com/photos/1024993/pexels-photo-1024993.jpeg?auto=compress&cs=tinysrgb&w=800',
-    voiceClip: 'voice_wedding.mp3',
-    description: 'The most beautiful day of your life. You looked radiant in your white dress, and Robert couldn\'t stop smiling.',
-    narrator: 'Your sister Mary',
-  },
-  {
-    id: '3',
-    title: 'Max the Golden Retriever',
-    category: 'pets',
-    date: '1978-1992',
-    image: 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800',
-    voiceClip: 'voice_max.mp3',
-    description: 'Max was your faithful companion for 14 wonderful years. He loved playing fetch in the backyard.',
-    narrator: 'Your grandson Leo',
-  },
-  {
-    id: '4',
-    title: 'Christmas Morning 1995',
-    category: 'life-events',
-    date: 'December 25, 1995',
-    image: 'https://images.pexels.com/photos/1303081/pexels-photo-1303081.jpeg?auto=compress&cs=tinysrgb&w=800',
-    voiceClip: 'voice_christmas.mp3',
-    description: 'The kids were so excited to open presents. You made the most delicious Christmas cookies that morning.',
-    narrator: 'Your daughter Sarah',
-  },
-  {
-    id: '5',
-    title: 'Garden with Your Roses',
-    category: 'places',
-    date: 'Spring 1988',
-    image: 'https://images.pexels.com/photos/1408221/pexels-photo-1408221.jpeg?auto=compress&cs=tinysrgb&w=800',
-    voiceClip: 'voice_garden.mp3',
-    description: 'You spent countless hours tending to your beautiful rose garden. The red roses were always your favorite.',
-    narrator: 'Your neighbor Mrs. Johnson',
-  },
-  {
-    id: '6',
-    title: 'Dancing with Robert',
-    category: 'people',
-    date: '1960s',
-    image: 'https://images.pexels.com/photos/1024960/pexels-photo-1024960.jpeg?auto=compress&cs=tinysrgb&w=800',
-    voiceClip: 'voice_dancing.mp3',
-    description: 'You and Robert loved to dance together. Every Friday night was dance night at the community center.',
-    narrator: 'Your friend Betty',
-  },
-];
+const ICONS: Record<string, any> = { Heart, Users, MapPin, Calendar };
+const categories = memoriesConfig.categories;
+const sampleMemories = memoriesConfig.memories;
 
-const categories = [
-  { id: 'all', name: 'All Memories', icon: Heart, color: '#4682B4' },
-  { id: 'people', name: 'People', icon: Users, color: '#FF69B4' },
-  { id: 'places', name: 'Places', icon: MapPin, color: '#32CD32' },
-  { id: 'pets', name: 'Pets', icon: Heart, color: '#FF8C00' },
-  { id: 'life-events', name: 'Life Events', icon: Calendar, color: '#9370DB' },
-];
+function renderCategoryIcon(cat: any, isActive: boolean) {
+  const iconComponent = ICONS[cat.icon];
+  if (typeof iconComponent === 'function') {
+    return iconComponent({ size: 20, color: isActive ? '#fff' : cat.color });
+  }
+  if (typeof cat.icon === 'string') {
+    return <Text style={{ fontSize: 20 }}>{cat.icon}</Text>;
+  }
+  return <Text style={{ fontSize: 20 }}>❓</Text>;
+}
 
 export default function MemoryLane() {
   const { currentTheme, currentTextScale, calmMode, scaleText, getCalmModeStyles, getCalmModeTextColor } = useTheme();
@@ -537,7 +482,6 @@ export default function MemoryLane() {
         {/* Category Filter */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
           {categories.map(cat => {
-            const Icon = cat.icon;
             const isActive = selectedCategory === cat.id;
             return (
               <TouchableOpacity
@@ -546,7 +490,7 @@ export default function MemoryLane() {
                 onPress={() => setSelectedCategory(cat.id)}
                 activeOpacity={0.8}
               >
-                <Icon size={scaleText(20)} color={isActive ? '#fff' : cat.color} />
+                {renderCategoryIcon(cat, isActive)}
                 <Text style={[styles.categoryText, isActive && { color: '#fff' }]}>{cat.name}</Text>
               </TouchableOpacity>
             );

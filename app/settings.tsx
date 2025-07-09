@@ -15,6 +15,7 @@ import { useTheme, colorThemes, textScales } from '@/contexts/ThemeContext';
 import Slider from '@react-native-community/slider';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import settingsConfig from '../config/settings.json';
 
 function MySlider(props: any) {
   if (Platform.OS === 'web') {
@@ -37,7 +38,7 @@ export default function SettingsScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [currentTime, setCurrentTime] = useState(new Date());
   // Settings state
-  const [soundVolume, setSoundVolume] = useState(0.7);
+  const [soundVolume, setSoundVolume] = useState(settingsConfig.soundVolume);
   const [voiceSpeed, setVoiceSpeed] = useState('normal');
   const router = useRouter();
 
@@ -68,11 +69,7 @@ export default function SettingsScreen() {
       day: 'numeric',
     });
   };
-  const voiceSpeeds = [
-    { id: 'slow', name: 'Slow', icon: '🐢' },
-    { id: 'normal', name: 'Normal', icon: '🚶' },
-    { id: 'fast', name: 'Fast', icon: '🏃' },
-  ];
+  const voiceSpeeds = settingsConfig.voiceSpeeds;
   const handleNeedHelp = () => {
     console.log('Opening help tutorial');
     // In a real app, this would show instructions or play a tutorial
@@ -507,16 +504,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   volumePresets: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Center the buttons
+    alignItems: 'center',
+    gap: scaleText(12),
   },
   presetButton: {
-    width: scaleText(80),
-    height: scaleText(40),
+    minWidth: scaleText(100), // Increased width for text
+    height: scaleText(44),
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: scaleText(6),
+    paddingHorizontal: scaleText(12),
   },
   presetText: {
     fontSize: scaleText(18),
@@ -528,16 +529,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   speedOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Center the buttons
+    alignItems: 'center',
+    gap: scaleText(12),
   },
   speedButton: {
-    width: scaleText(80),
-    height: scaleText(40),
+    minWidth: scaleText(100), // Increased width for text
+    height: scaleText(44),
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: scaleText(6),
+    paddingHorizontal: scaleText(12),
   },
   speedEmoji: {
     fontSize: scaleText(24),
@@ -556,16 +561,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   colorOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Center the buttons
+    alignItems: 'center',
+    gap: scaleText(12),
   },
   colorCard: {
-    width: scaleText(80),
-    height: scaleText(80),
+    minWidth: scaleText(100), // Increased width for text
+    height: scaleText(100),
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: scaleText(6),
+    paddingHorizontal: scaleText(12),
   },
   colorSwatch: {
     width: '100%',
@@ -586,16 +595,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   sizeOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Center the buttons
+    alignItems: 'center',
+    gap: scaleText(12),
   },
   sizeCard: {
-    width: scaleText(80),
-    height: scaleText(80),
+    minWidth: scaleText(100), // Increased width for text
+    height: scaleText(100),
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: scaleText(6),
+    paddingHorizontal: scaleText(12),
   },
   sizePreview: {
     fontSize: scaleText(24),

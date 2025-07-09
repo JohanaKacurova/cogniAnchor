@@ -7,10 +7,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePuzzle, PuzzleProvider, PuzzlePiece, PuzzleState } from '../contexts/PuzzleContext';
 import { speak } from '../core/utils/tts';
 import * as Haptics from 'expo-haptics';
+import puzzleSizesConfig from '../../config/puzzle-sizes.json';
 
-const SIZES = [32, 44, 56, 68]; // px, from smallest to largest
-const COLORS = ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98'];
-const SHAPE_TYPE: ShapeType = 'circle';
+const SIZES = puzzleSizesConfig.sizes;
+const COLORS = puzzleSizesConfig.colors;
+const SHAPE_TYPE = puzzleSizesConfig.shapeType as ShapeType;
 
 function getInitialSizePieces(): PuzzlePiece[] {
   return SIZES.map((size, i) => ({

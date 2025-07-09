@@ -38,6 +38,8 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContacts } from '@/contexts/ContactsContext';
 import { usePhotoUpload } from '@/hooks/usePhotoUpload';
+import memoryMediaConfig from '../../config/memory-media.json';
+import memoryCategories from '../../config/memory-categories.json';
 
 interface MemoryFormData {
   title: string;
@@ -50,14 +52,7 @@ interface MemoryFormData {
   taggedPeople: string[];
 }
 
-const categories = [
-  { id: 'people', name: 'People', icon: '👥', color: '#FF69B4' },
-  { id: 'places', name: 'Places', icon: '📍', color: '#32CD32' },
-  { id: 'pets', name: 'Pets', icon: '🐾', color: '#FF8C00' },
-  { id: 'life-events', name: 'Life Events', icon: '🎉', color: '#9370DB' },
-  { id: 'hobbies', name: 'Hobbies', icon: '🎨', color: '#20B2AA' },
-  { id: 'holidays', name: 'Holidays', icon: '🎄', color: '#DC143C' },
-];
+const categories = memoryCategories;
 
 type TabRoute = '/' | '/schedule' | '/contacts' | '/profile' | '/settings';
 
@@ -171,19 +166,7 @@ export default function AddMemoryScreen() {
     console.log(`Opening ${type} picker`);
     
     // Simulate media selection with sample images/videos
-    const sampleMedia = {
-      photo: [
-        'https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1024993/pexels-photo-1024993.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800',
-        'https://images.pexels.com/photos/1303081/pexels-photo-1303081.jpeg?auto=compress&cs=tinysrgb&w=800',
-      ],
-      video: [
-        'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-        'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4',
-      ]
-    };
-    
+    const sampleMedia = memoryMediaConfig;
     const randomMedia = sampleMedia[type][Math.floor(Math.random() * sampleMedia[type].length)];
     setFormData(prev => ({ 
       ...prev, 
@@ -328,6 +311,18 @@ export default function AddMemoryScreen() {
   };
 
   const styles = createStyles(currentTheme, scaleText, calmMode, currentTextScale, width, height, isSmallScreen, isLargeScreen);
+
+  const ICONS: Record<string, any> = { Users, Calendar };
+
+  const renderCategoryIcon = (cat: any) => {
+    if (ICONS[cat.icon]) {
+      return ICONS[cat.icon]({ size: 20, color: cat.color });
+    }
+    if (typeof cat.icon === 'string') {
+      return <Text style={{ fontSize: 20 }}>{cat.icon}</Text>;
+    }
+    return <Text style={{ fontSize: 20 }}>❓</Text>;
+  };
 
   return (
     <SafeAreaView style={[styles.container, getCalmModeStyles()]}>
@@ -546,7 +541,7 @@ export default function AddMemoryScreen() {
                     }}
                   >
                     <View style={styles.categoryOption}>
-                      <Text style={styles.categoryEmoji}>{category.icon}</Text>
+                      {renderCategoryIcon(category)}
                       <Text style={[styles.categoryName, { color: getCalmModeTextColor() }]}>
                         {category.name}
                       </Text>

@@ -38,6 +38,7 @@ import {
   Flower2,
   Brain
 } from 'lucide-react-native';
+import calmZoneConfig from '../../config/calm-zone.json';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Video } from 'expo-av';
@@ -92,167 +93,15 @@ export default function CalmZoneScreen() {
   const [showOceanVideo, setShowOceanVideo] = useState(false);
   const [videoStatus, setVideoStatus] = useState<any>(null);
 
-  const audioTracks: AudioTrack[] = [
-    // Nature Sounds
-    {
-      id: 'ocean-waves',
-      title: 'Gentle Ocean Waves',
-      category: 'nature',
-      duration: '10:00',
-      icon: <Waves size={scaleText(24)} color="#4682B4" strokeWidth={2} />,
-      description: 'Peaceful waves lapping on the shore'
-    },
-    {
-      id: 'forest-birds',
-      title: 'Forest Birds',
-      category: 'nature',
-      duration: '15:00',
-      icon: <Bird size={scaleText(24)} color="#228B22" strokeWidth={2} />,
-      description: 'Gentle bird songs in a quiet forest'
-    },
-    {
-      id: 'rain-sounds',
-      title: 'Soft Rain',
-      category: 'nature',
-      duration: '20:00',
-      icon: <CloudRain size={scaleText(24)} color="#87CEEB" strokeWidth={2} />,
-      description: 'Light rain on leaves and windows'
-    },
-    {
-      id: 'wind-chimes',
-      title: 'Wind Chimes',
-      category: 'nature',
-      duration: '12:00',
-      icon: <Wind size={scaleText(24)} color="#DDA0DD" strokeWidth={2} />,
-      description: 'Gentle chimes in a soft breeze'
-    },
-    // Soft Music
-    {
-      id: 'piano-lullaby',
-      title: 'Piano Lullaby',
-      category: 'music',
-      duration: '8:00',
-      icon: <Music size={scaleText(24)} color="#9370DB" strokeWidth={2} />,
-      description: 'Soft piano melodies for relaxation'
-    },
-    {
-      id: 'classical-strings',
-      title: 'Classical Strings',
-      category: 'music',
-      duration: '12:00',
-      icon: <Music size={scaleText(24)} color="#DA70D6" strokeWidth={2} />,
-      description: 'Gentle string quartet music'
-    },
-    {
-      id: 'meditation-bells',
-      title: 'Meditation Bells',
-      category: 'music',
-      duration: '15:00',
-      icon: <Music size={scaleText(24)} color="#20B2AA" strokeWidth={2} />,
-      description: 'Peaceful meditation bells'
-    },
-    // Messages from Loved Ones
-    {
-      id: 'sarah-message',
-      title: 'Message from Sarah',
-      category: 'messages',
-      duration: '2:30',
-      icon: <MessageCircle size={scaleText(24)} color="#FF69B4" strokeWidth={2} />,
-      description: 'A loving message from your daughter'
-    },
-    {
-      id: 'leo-message',
-      title: 'Message from Leo',
-      category: 'messages',
-      duration: '1:45',
-      icon: <MessageCircle size={scaleText(24)} color="#32CD32" strokeWidth={2} />,
-      description: 'Sweet words from your grandson'
-    },
-    {
-      id: 'family-message',
-      title: 'Family Message',
-      category: 'messages',
-      duration: '3:00',
-      icon: <MessageCircle size={scaleText(24)} color="#FF8C00" strokeWidth={2} />,
-      description: 'Loving words from your whole family'
-    }
-  ];
-
-  const visualActivities: VisualActivity[] = [
-    {
-      id: 'ocean-animation',
-      title: 'Ocean Waves',
-      type: 'animation',
-      icon: <Waves size={scaleText(32)} color="#4682B4" strokeWidth={2} />,
-      description: 'Watch gentle waves roll in and out',
-      image: 'https://images.pexels.com/photos/1032650/pexels-photo-1032650.jpeg?auto=compress&cs=tinysrgb&w=800'
-    },
-    {
-      id: 'clouds-animation',
-      title: 'Floating Clouds',
-      type: 'animation',
-      icon: <Sun size={scaleText(32)} color="#87CEEB" strokeWidth={2} />,
-      description: 'Peaceful clouds drifting across the sky',
-      image: 'https://images.pexels.com/photos/531756/pexels-photo-531756.jpeg?auto=compress&cs=tinysrgb&w=800'
-    },
-    {
-      id: 'garden-animation',
-      title: 'Flower Garden',
-      type: 'animation',
-      icon: <Flower2 size={scaleText(32)} color="#FF69B4" strokeWidth={2} />,
-      description: 'Beautiful flowers swaying in the breeze',
-      image: 'https://images.pexels.com/photos/1408221/pexels-photo-1408221.jpeg?auto=compress&cs=tinysrgb&w=800'
-    },
-    {
-      id: 'simple-drawing',
-      title: 'Color Gentle Shapes',
-      type: 'drawing',
-      icon: <Palette size={scaleText(32)} color="#9370DB" strokeWidth={2} />,
-      description: 'Tap to add soft colors to peaceful shapes'
-    },
-    {
-      id: 'calm-patterns',
-      title: 'Watch Calm Patterns',
-      type: 'patterns',
-      icon: <Sparkles size={scaleText(32)} color="#20B2AA" strokeWidth={2} />,
-      description: 'Slow, soothing visual patterns for relaxation'
-    },
-    {
-      id: 'mind-match-game',
-      title: 'Play a Gentle Memory Game',
-      type: 'game',
-      icon: <Brain size={scaleText(32)} color="#9370DB" strokeWidth={2} />,
-      description: 'Exercise your memory with friendly cards'
-    },
-    {
-      id: 'shape-matching-puzzle',
-      title: 'Shape Matching Puzzle',
-      type: 'game',
-      icon: <Brain size={scaleText(32)} color="#4682B4" strokeWidth={2} />,
-      description: 'Drag and match shapes to their outlines',
-    },
-    {
-      id: 'pattern-completion-puzzle',
-      title: 'Pattern Completion Puzzle',
-      type: 'patterns',
-      icon: <Sparkles size={scaleText(32)} color="#FFD700" strokeWidth={2} />,
-      description: 'Complete soothing patterns with gentle shapes',
-    },
-    {
-      id: 'color-sorting-puzzle',
-      title: 'Color Sorting Puzzle',
-      type: 'game',
-      icon: <Palette size={scaleText(32)} color="#FF69B4" strokeWidth={2} />,
-      description: 'Sort shapes by color in a gentle gradient',
-    },
-    {
-      id: 'size-sequencing-puzzle',
-      title: 'Size Sequencing Puzzle',
-      type: 'game',
-      icon: <Brain size={scaleText(32)} color="#98FB98" strokeWidth={2} />,
-      description: 'Arrange shapes from smallest to largest',
-    },
-  ];
+  const ICONS: Record<string, any> = { Waves, Bird, CloudRain, Wind, Music, MessageCircle, Sun, Flower2, Palette, Sparkles, Brain };
+  const audioTracks = calmZoneConfig.audioTracks.map(track => ({
+    ...track,
+    icon: ICONS[track.icon] ? ICONS[track.icon]({ size: 24, color: track.iconColor, strokeWidth: 2 }) : null
+  }));
+  const visualActivities = calmZoneConfig.visualActivities.map(activity => ({
+    ...activity,
+    icon: ICONS[activity.icon] ? ICONS[activity.icon]({ size: 32, color: activity.iconColor, strokeWidth: 2 }) : null
+  }));
 
   useEffect(() => {
     Animated.timing(fadeAnim, {

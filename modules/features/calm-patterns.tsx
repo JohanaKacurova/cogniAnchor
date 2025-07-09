@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
+import calmPatternsConfig from '../../config/calm-patterns.json';
 
 interface Pattern {
   id: string;
@@ -35,58 +36,8 @@ interface Pattern {
   type: 'breathing' | 'ripple' | 'mandala' | 'flow' | 'gradient' | 'particles';
 }
 
-const patterns: Pattern[] = [
-  {
-    id: 'breathing-circle',
-    name: 'Breathing Circle',
-    description: 'A gentle circle that breathes in and out',
-    colors: ['#87CEEB', '#E6F3FF', '#B0E0E6'],
-    type: 'breathing'
-  },
-  {
-    id: 'water-ripples',
-    name: 'Water Ripples',
-    description: 'Peaceful ripples spreading across water',
-    colors: ['#4682B4', '#87CEEB', '#E0F6FF'],
-    type: 'ripple'
-  },
-  {
-    id: 'mandala-rotation',
-    name: 'Gentle Mandala',
-    description: 'A slowly rotating mandala pattern',
-    colors: ['#DDA0DD', '#E6E6FA', '#F8F0FF'],
-    type: 'mandala'
-  },
-  {
-    id: 'flowing-colors',
-    name: 'Flowing Colors',
-    description: 'Soft colors flowing like gentle waves',
-    colors: ['#FFE4E1', '#FF69B4', '#FFF0F5'],
-    type: 'flow'
-  },
-  {
-    id: 'sunset-gradient',
-    name: 'Sunset Gradient',
-    description: 'Peaceful sunset colors blending together',
-    colors: ['#FFE4B5', '#FFA07A', '#FFEFD5'],
-    type: 'gradient'
-  },
-  {
-    id: 'floating-particles',
-    name: 'Floating Lights',
-    description: 'Gentle lights floating like fireflies',
-    colors: ['#F0FFF0', '#98FB98', '#E0FFE0'],
-    type: 'particles'
-  }
-];
-
-const ambientSounds = [
-  { id: 'waves', name: 'Ocean Waves', icon: '🌊' },
-  { id: 'rain', name: 'Gentle Rain', icon: '🌧️' },
-  { id: 'wind', name: 'Soft Wind', icon: '🍃' },
-  { id: 'chimes', name: 'Wind Chimes', icon: '🎐' },
-  { id: 'silence', name: 'Peaceful Silence', icon: '🤫' }
-];
+const patterns = calmPatternsConfig.patterns;
+const ambientSounds = calmPatternsConfig.ambientSounds;
 
 type TabRoute = '/' | '/schedule' | '/contacts' | '/profile' | '/settings';
 

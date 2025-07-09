@@ -1,55 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import puzzlesData from '../../config/puzzles.json';
 import { Brain, Sparkles, Palette, Star } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
-const PUZZLES = [
-  {
-    id: 'shape-matching-puzzle',
-    title: 'Shape Matching',
-    description: 'Drag and match shapes to their outlines.',
-    icon: <Brain size={32} color="#4682B4" strokeWidth={2} />,
-    route: '/shape-puzzle',
-    levels: null,
-  },
-  {
-    id: 'pattern-completion-puzzle',
-    title: 'Pattern Completion',
-    description: 'Complete soothing patterns with gentle shapes.',
-    icon: <Sparkles size={32} color="#FFD700" strokeWidth={2} />,
-    route: '/puzzle-patterns',
-    levels: null,
-  },
-  {
-    id: 'color-sorting-puzzle',
-    title: 'Color Sorting',
-    description: 'Sort shapes by color in a gentle gradient.',
-    icon: <Palette size={32} color="#FF69B4" strokeWidth={2} />,
-    route: '/puzzle-colors',
-    levels: null,
-  },
-  {
-    id: 'size-sequencing-puzzle',
-    title: 'Size Sequencing',
-    description: 'Arrange shapes from smallest to largest.',
-    icon: <Brain size={32} color="#98FB98" strokeWidth={2} />,
-    route: '/puzzle-sizes',
-    levels: null,
-  },
-  {
-    id: 'mind-match-game',
-    title: 'Mind Match',
-    description: 'Exercise your memory with friendly cards.',
-    icon: <Star size={32} color="#9370DB" strokeWidth={2} />,
-    route: '/mind-match',
-    levels: [
-      { id: '2x2', label: 'Gentle Start', description: '4 cards (2 pairs)' },
-      { id: '2x3', label: 'Comfortable', description: '6 cards (3 pairs)' },
-      { id: '3x4', label: 'Engaging', description: '12 cards (6 pairs)' },
-    ],
-  },
-];
+const ICONS: Record<string, any> = { Brain, Sparkles, Palette, Star };
+const PUZZLES = (puzzlesData as any[]);
+
+function renderPuzzleIcon(puzzle: any) {
+  if (ICONS[puzzle.icon]) {
+    return ICONS[puzzle.icon]({ size: 32, color: puzzle.iconColor, strokeWidth: 2 });
+  }
+  if (typeof puzzle.icon === 'string') {
+    return <Text style={{ fontSize: 32 }}>{puzzle.icon}</Text>;
+  }
+  return <Text style={{ fontSize: 32 }}>❓</Text>;
+}
 
 const PuzzleLevelsScreen: React.FC = () => {
   const { currentTheme, scaleText, calmMode, getCalmModeTextColor, getCalmModeSecondaryTextColor } = useTheme();
@@ -75,7 +42,7 @@ const PuzzleLevelsScreen: React.FC = () => {
               accessibilityLabel={`Select ${puzzle.title} puzzle`}
               accessibilityRole="button"
             >
-              <View style={styles.icon}>{puzzle.icon}</View>
+              <View style={styles.icon}>{renderPuzzleIcon(puzzle)}</View>
               <View style={styles.cardContent}>
                 <Text style={[styles.cardTitle, { color: getCalmModeTextColor() }]}>{puzzle.title}</Text>
                 <Text style={[styles.cardDescription, { color: calmMode ? getCalmModeSecondaryTextColor() : currentTheme.colors.textSecondary }]}>{puzzle.description}</Text>

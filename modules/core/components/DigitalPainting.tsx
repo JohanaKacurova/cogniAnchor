@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { View, StyleSheet, PanResponder, Dimensions, TouchableOpacity, Text } from 'react-native';
+import paintingConfig from '../../../config/digital-painting.json';
 
-const COLORS = ['#222', '#FF4444', '#2196F3', '#4CAF50', '#FFD600', '#FF69B4', '#9370DB', '#FF8C00'];
-const CANVAS_WIDTH = Dimensions.get('window').width - 40;
-const CANVAS_HEIGHT = 360;
+const COLORS = paintingConfig.colors;
+const CANVAS_WIDTH = Dimensions.get('window').width - paintingConfig.canvasWidthOffset;
+const CANVAS_HEIGHT = paintingConfig.canvasHeight;
 
 export default function DigitalPainting({ onClose }: { onClose?: () => void }) {
   const [lines, setLines] = useState<{ color: string; points: { x: number; y: number }[] }[]>([]);

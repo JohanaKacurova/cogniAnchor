@@ -21,7 +21,7 @@ export default function ProfileScreen() {
   const [scaleAnim] = useState(new Animated.Value(0.9));
   const [currentTime, setCurrentTime] = useState(new Date());
   const router = useRouter();
-  const { name: patientName, setName: setPatientName } = usePatient();
+  const { patient, updatePatient } = usePatient();
 
   useEffect(() => {
     // Gentle fade-in and scale animation
@@ -74,19 +74,6 @@ export default function ProfileScreen() {
     // In a real app, this would navigate to a photo gallery
   };
 
-  const profileData = {
-    name: "Margaret",
-    age: 78,
-    birthday: "March 12th",
-    location: "Seattle",
-    family: {
-      daughter: "Sarah",
-      grandson: "Leo"
-    },
-    favoriteColor: "Blue",
-    favoriteAnimal: "Dogs"
-  };
-
   const styles = createStyles(currentTheme, scaleText, calmMode);
 
   return (
@@ -122,8 +109,8 @@ export default function ProfileScreen() {
           </View>
           <TextInput
             style={[styles.profileName, { color: getCalmModeTextColor() }]}
-            value={patientName}
-            onChangeText={setPatientName}
+            value={patient.name}
+            onChangeText={name => updatePatient({ name })}
             placeholder="Enter your name"
             placeholderTextColor={calmMode ? '#B0B0B0' : '#888'}
             accessibilityLabel="Patient Name"
@@ -131,7 +118,7 @@ export default function ProfileScreen() {
             textAlign="center"
             returnKeyType="done"
           />
-          <Text style={[styles.profileSubtitle, { color: calmMode ? '#B0B0B0' : currentTheme.colors.primary }]}>You are {profileData.age} years young! 🌸</Text>
+          <Text style={[styles.profileSubtitle, { color: calmMode ? '#B0B0B0' : currentTheme.colors.primary }]}>You are {patient.age} years young! 🌸</Text>
         </Animated.View>
         {/* Personal Details - More Conversational */}
         <View style={styles.detailsSection}>
@@ -143,7 +130,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.detailText}>
                 <Text style={[styles.detailLabel, { color: getCalmModeTextColor() }]}>Your special day is</Text>
-                <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>{profileData.birthday}</Text>
+                <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>{patient.birthday}</Text>
               </View>
             </View>
             <View style={styles.detailRow}>
@@ -152,7 +139,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.detailText}>
                 <Text style={[styles.detailLabel, { color: getCalmModeTextColor() }]}>You live in beautiful</Text>
-                <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>{profileData.location}</Text>
+                <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>{patient.location}</Text>
               </View>
             </View>
             <View style={styles.detailRow}>
@@ -162,7 +149,10 @@ export default function ProfileScreen() {
               <View style={styles.detailText}>
                 <Text style={[styles.detailLabel, { color: getCalmModeTextColor() }]}>Your family loves you</Text>
                 <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>
-                  {profileData.family.daughter} & little {profileData.family.grandson}
+                  {/* Example: show first two family members if available */}
+                  {patient.family.familyMembers.length > 0
+                    ? patient.family.familyMembers.map(m => m.name).slice(0, 2).join(' & ')
+                    : 'Your family'}
                 </Text>
               </View>
             </View>
@@ -172,7 +162,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.detailText}>
                 <Text style={[styles.detailLabel, { color: getCalmModeTextColor() }]}>You love the color</Text>
-                <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>{profileData.favoriteColor} & {profileData.favoriteAnimal}</Text>
+                <Text style={[styles.detailValue, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>{patient.personalDetails.favoriteColor} & {patient.personalDetails.favoriteAnimal}</Text>
               </View>
             </View>
           </View>

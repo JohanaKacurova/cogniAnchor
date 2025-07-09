@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import scheduleData from '../../config/schedule.json';
 
 export interface ScheduleEntry {
   id: string;
@@ -28,45 +29,7 @@ interface ScheduleProviderProps {
 }
 
 export function ScheduleProvider({ children }: ScheduleProviderProps) {
-  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([
-    {
-      id: '1',
-      date: '2024-06-11',
-      time: '08:00',
-      activityName: 'Breakfast',
-      description: 'Morning meal with family',
-      reminderType: 'both',
-      repeatOption: 'daily',
-    },
-    {
-      id: '2',
-      date: '2024-06-11',
-      time: '10:00',
-      activityName: 'Take Medication',
-      description: 'Morning pills with water',
-      reminderType: 'voice',
-      repeatOption: 'daily',
-    },
-    {
-      id: '3',
-      date: '2024-06-11',
-      time: '15:00',
-      activityName: 'Walk with Sarah',
-      description: 'Afternoon walk in the park',
-      assignedContact: '1',
-      reminderType: 'both',
-      repeatOption: 'none',
-    },
-    {
-      id: '4',
-      date: '2024-06-12',
-      time: '09:00',
-      activityName: 'Morning Exercise',
-      description: 'Light stretching routine',
-      reminderType: 'visual',
-      repeatOption: 'daily',
-    },
-  ]);
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>(scheduleData as ScheduleEntry[]);
 
   const addScheduleEntry = (newEntry: Omit<ScheduleEntry, 'id'>) => {
     const id = Date.now().toString();

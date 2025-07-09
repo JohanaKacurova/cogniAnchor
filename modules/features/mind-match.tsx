@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
+import mindMatchCards from '../../config/mind-match-cards.json';
 
 interface Card {
   id: string;
@@ -35,17 +36,7 @@ interface Card {
   isMatched: boolean;
 }
 
-const cardPairs = [
-  { emoji: '🐕', name: 'Dog', color: '#FFE4B5' },
-  { emoji: '🌸', name: 'Flower', color: '#FFB6C1' },
-  { emoji: '🍎', name: 'Apple', color: '#FFE4E1' },
-  { emoji: '🏠', name: 'House', color: '#E0F6FF' },
-  { emoji: '❤️', name: 'Heart', color: '#FFE4E1' },
-  { emoji: '🌞', name: 'Sun', color: '#FFFACD' },
-  { emoji: '🦋', name: 'Butterfly', color: '#E6E6FA' },
-  { emoji: '🌳', name: 'Tree', color: '#F0FFF0' },
-  { emoji: '🎵', name: 'Music', color: '#F0F8FF' },
-];
+const cardPairs = mindMatchCards;
 
 type TabRoute = '/' | '/schedule' | '/contacts' | '/profile' | '/settings';
 

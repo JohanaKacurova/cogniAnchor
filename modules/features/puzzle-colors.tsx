@@ -7,15 +7,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePuzzle, PuzzleProvider, PuzzlePiece, PuzzleState } from '../contexts/PuzzleContext';
 import { speak } from '../core/utils/tts';
 import * as Haptics from 'expo-haptics';
+import puzzleColorsConfig from '../../config/puzzle-colors.json';
 
-const COLORS = [
-  '#FF69B4', // pink
-  '#FFD700', // yellow
-  '#87CEEB', // blue
-  '#98FB98', // green
-];
-
-const SHAPE_TYPE: ShapeType = 'circle';
+const COLORS = puzzleColorsConfig.colors;
+const SHAPE_TYPE = puzzleColorsConfig.shapeType as ShapeType;
 
 function getInitialColorPieces(): PuzzlePiece[] {
   return COLORS.map((color, i) => ({

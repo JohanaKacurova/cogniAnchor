@@ -22,6 +22,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContacts, Contact } from '@/contexts/ContactsContext';
 import { usePhotoUpload } from '../core/hooks/usePhotoUpload';
+import themeConfig from '../../config/theme.json';
 
 interface ContactFormData {
   name: string;
@@ -33,17 +34,7 @@ interface ContactFormData {
 }
 
 // Default theme fallback
-const defaultTheme = {
-  colors: {
-    primary: '#007AFF',
-    background: '#FFFFFF',
-    surface: '#F8F9FA',
-    text: '#000000',
-    textSecondary: '#666666',
-    border: '#E1E5E9',
-    accent: '#007AFF',
-  }
-};
+const defaultTheme = themeConfig;
 
 export default function AddContactScreen() {
   const { currentTheme = defaultTheme, currentTextScale, calmMode, scaleText, getCalmModeStyles, getCalmModeTextColor } = useTheme();
