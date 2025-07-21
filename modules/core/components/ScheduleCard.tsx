@@ -14,7 +14,7 @@ interface ScheduleCardProps {
   time: string;
   image: string;
   completed: boolean;
-  onVoicePrompt: () => void;
+  onVoicePrompt?: () => void;
   voicePromptUrl?: string;
   caregiverPhoto?: string;
   caregiverName?: string;
@@ -98,16 +98,17 @@ export default function ScheduleCard({
               <Check size={scaleText(28)} color="#4CAF50" strokeWidth={3} />
             </View>
           )}
-          
-          <TouchableOpacity
-            style={styles.voiceButton}
-            onPress={onVoicePrompt}
-            activeOpacity={0.7}
-            accessibilityLabel={voicePromptUrl ? 'Play voice prompt' : 'No voice prompt available'}
-            disabled={!voicePromptUrl}
-          >
-            <Volume2 size={scaleText(24)} color={voicePromptUrl ? currentTheme.colors.primary : '#B0B0B0'} strokeWidth={2} />
-          </TouchableOpacity>
+          {onVoicePrompt && (
+            <TouchableOpacity
+              style={styles.voiceButton}
+              onPress={onVoicePrompt}
+              activeOpacity={0.7}
+              accessibilityLabel={voicePromptUrl ? 'Play voice prompt' : 'No voice prompt available'}
+              disabled={!voicePromptUrl}
+            >
+              <Volume2 size={scaleText(24)} color={voicePromptUrl ? currentTheme.colors.primary : '#B0B0B0'} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
           
           {hasSteps && (
             <TouchableOpacity

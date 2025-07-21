@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system';
 import CryptoJS from 'crypto-js';
 import { ProgressBar } from 'react-native-paper';
 import { Snackbar } from 'react-native-paper';
+import { useRouter } from 'expo-router';
 
 // Add Sentry import if available (optional, safe to ignore if not configured)
 let Sentry: any = null;
@@ -122,6 +123,19 @@ export default function RecordThoughtScreen() {
   const [showRecordedMsg, setShowRecordedMsg] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showSharedMsg, setShowSharedMsg] = useState(false);
+
+  // For top bar time/date
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  // For navigation
+  const router = useRouter();
 
   // Request and cache permission on mount
   useEffect(() => {
@@ -433,14 +447,21 @@ export default function RecordThoughtScreen() {
     return () => console.log("TEST - Component unmounted");
   }, []);
 
+  // Dynamic styles for top/bottom bars
+  const themedStyles = createThemedStyles(currentTheme, scaleText);
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* TEMPORARY DEBUG OVERLAY - REMOVE WHEN DONE */}
-      {/* <View style={styles.debugOverlay} pointerEvents="none" /> */}
-      {/* Header */}
-      <View style={styles.headerBar}>
-        <Text style={styles.appName}>CogniAnchor</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: currentTheme?.colors?.background || '#fff' }]}> 
+      {/* Top Bar with Time and Date */}
+      <View style={themedStyles.stickyHeader}>
+        <View style={themedStyles.dateTimeContainer}>
+          <View style={themedStyles.timeWrapper}>
+            <Text style={themedStyles.time}>{formatTime(currentTime)}</Text>
+          </View>
+          <Text style={themedStyles.date}>{formatDate(currentTime)}</Text>
         </View>
+      </View>
+      {/* Main Content */}
       <View style={styles.centered}>
         {/* Instructions above the button */}
         <Text style={styles.instructions}>Tap to record your thought</Text>
@@ -493,11 +514,35 @@ export default function RecordThoughtScreen() {
         {/* Drafts/Preview Section */}
         <View style={styles.draftsSection}>
           <Text style={styles.draftEmpty}>Saved thoughts will appear here</Text>
-      </View>
+        </View>
         {state.status === 'processing' && (
           <ActivityIndicator size="large" color="#FF4444" style={{ marginTop: 24 }} />
-            )}
-          </View>
+        )}
+      </View>
+      {/* Bottom Navigation Bar */}
+      <View style={themedStyles.bottomNav}>
+        <Pressable style={themedStyles.navButton} onPress={() => router.push('/')}> 
+          <Feather name="home" size={scaleText(24)} color={currentTheme?.colors?.primary || '#2196F3'} />
+          <Text style={themedStyles.navLabel}>My Day</Text>
+        </Pressable>
+        <Pressable style={themedStyles.navButton} onPress={() => router.push('/schedule')}>
+          <Feather name="calendar" size={scaleText(24)} color={currentTheme?.colors?.primary || '#2196F3'} />
+          <Text style={themedStyles.navLabel}>Schedule</Text>
+        </Pressable>
+        <Pressable style={themedStyles.navButton} onPress={() => router.push('/contacts')}>
+          <Feather name="users" size={scaleText(24)} color={currentTheme?.colors?.primary || '#2196F3'} />
+          <Text style={themedStyles.navLabel}>Contacts</Text>
+        </Pressable>
+        <Pressable style={themedStyles.navButton} onPress={() => router.push('/settings')}>
+          <Feather name="settings" size={scaleText(24)} color={currentTheme?.colors?.primary || '#2196F3'} />
+          <Text style={themedStyles.navLabel}>Settings</Text>
+        </Pressable>
+        <Pressable style={themedStyles.navButton} onPress={() => router.push('/profile')}>
+          <Feather name="user" size={scaleText(24)} color={currentTheme?.colors?.primary || '#2196F3'} />
+          <Text style={themedStyles.navLabel}>Profile</Text>
+        </Pressable>
+      </View>
+      {/* Modals and Snackbar remain unchanged */}
       <Modal
         visible={state.isModalVisible}
         transparent
@@ -507,17 +552,17 @@ export default function RecordThoughtScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Name your recording</Text>
-                <TextInput
+            <TextInput
               value={state.recordingName}
               onChangeText={v => dispatch({ type: 'SET_RECORDING_NAME', value: v })}
               placeholder="Enter a name…"
               style={styles.input}
               autoFocus
-                  maxLength={50}
-                />
+              maxLength={50}
+            />
             {/* Playback controls for the just-recorded audio */}
             {state.recordingUri && (
-            <View style={styles.playbackSection}>
+              <View style={styles.playbackSection}>
                 <Pressable
                   style={styles.playPauseBtn}
                   onPress={state.status === 'playing' ? pauseRecording : playRecording}
@@ -535,12 +580,12 @@ export default function RecordThoughtScreen() {
                       { width: `${Math.round(state.playbackPosition * 100)}%` },
                     ]}
                   />
-              </View>
+                </View>
                 <Text style={styles.progressText}>
                   {Math.floor(state.playbackMillis / 1000)}s / {Math.floor(state.durationMillis / 1000)}s
-              </Text>
-            </View>
-          )}
+                </Text>
+              </View>
+            )}
             {state.status === 'processing' && (
               <ProgressBar
                 progress={state.uploadProgress}
@@ -555,9 +600,9 @@ export default function RecordThoughtScreen() {
               <Pressable style={styles.saveBtn} onPress={handleSaveRecording}>
                 <Text style={styles.saveText}>Save</Text>
               </Pressable>
-                </View>
-                </View>
             </View>
+          </View>
+        </View>
       </Modal>
       <Modal
         visible={state.showErrorModal}
@@ -863,3 +908,83 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 }); 
+
+// Add this function for dynamic themed styles
+function createThemedStyles(theme, scaleText) {
+  return StyleSheet.create({
+    stickyHeader: {
+      backgroundColor: theme?.colors?.background || '#f7f7f7',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: 0.5,
+      borderBottomColor: theme?.colors?.border || '#eee',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+      zIndex: 1000,
+      minHeight: 70,
+    },
+    dateTimeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    timeWrapper: {
+      backgroundColor: theme?.colors?.surface || '#fff',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme?.colors?.accent || '#eee',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
+      elevation: 1,
+      minWidth: 80,
+    },
+    time: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme?.colors?.text || '#333',
+      textAlign: 'center',
+    },
+    date: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: theme?.colors?.primary || '#2196F3',
+      textAlign: 'right',
+      flex: 1,
+      marginLeft: 16,
+      flexShrink: 1,
+    },
+    bottomNav: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
+      backgroundColor: theme?.colors?.background || '#fff',
+      borderTopWidth: 1,
+      borderTopColor: theme?.colors?.border || '#eee',
+      zIndex: 10,
+    },
+    navButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 4,
+    },
+    navLabel: {
+      fontSize: 12,
+      color: theme?.colors?.primary || '#2196F3',
+      marginTop: 2,
+      fontWeight: '500',
+    },
+  });
+} 

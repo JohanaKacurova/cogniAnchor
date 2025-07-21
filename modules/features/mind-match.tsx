@@ -21,11 +21,14 @@ import {
   User,
   Settings,
   Phone,
-  Volume2
+  Volume2,
+  Check,
+  Lock
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import mindMatchCards from '../../config/mind-match-cards.json';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Card {
   id: string;
@@ -38,7 +41,40 @@ interface Card {
 
 const cardPairs = mindMatchCards;
 
+// Replace the LEVELS array with a generated array of 50 levels:
+const LEVELS = Array.from({ length: 50 }, (_, i) => {
+  // Gradually increase pairs from 2 up to the max available, then repeat max
+  const maxPairs = cardPairs.length;
+  const pairs = Math.min(2 + Math.floor(i / 2), maxPairs);
+  // Grid size logic: start with 2x2, then 2x3, 2x4, 3x4, 3x6, 4x5, 4x6, etc.
+  let rows = 2, cols = 2;
+  if (pairs <= 2) { rows = 2; cols = 2; }
+  else if (pairs <= 3) { rows = 2; cols = 3; }
+  else if (pairs <= 4) { rows = 2; cols = 4; }
+  else if (pairs <= 6) { rows = 3; cols = 4; }
+  else if (pairs <= 8) { rows = 4; cols = 4; }
+  else if (pairs <= 10) { rows = 4; cols = 5; }
+  else { rows = 4 + Math.floor((pairs - 10) / 3); cols = 6; }
+  // Time limit decreases as levels increase, but not less than 15s
+  const timeLimit = Math.max(60 - i, 15);
+  // Difficulty flags
+  const distractAnimations = i >= 10;
+  const similarCards = i >= 20;
+  const shuffleOnMiss = false; // Always false for Pexeso logic
+  // Description
+  const description = `Level ${i + 1}: ${pairs} pairs, ${rows}x${cols} grid${distractAnimations ? ', distractions' : ''}${similarCards ? ', similar cards' : ''}`;
+  return { pairs, rows, cols, timeLimit, distractAnimations, similarCards, shuffleOnMiss, description };
+});
+
 type TabRoute = '/' | '/schedule' | '/contacts' | '/profile' | '/settings';
+
+const WIN_OVERLAY_TEXT = {
+  getTitle: (level: number) => `Level ${level + 1} Complete!`,
+  getDescription: (attempts: number) => `You matched all cards in ${attempts} attempts!`,
+  playAgain: 'Play Again',
+  nextLevel: 'Next Level',
+  allLevelsComplete: 'All Levels Complete',
+};
 
 export default function MindMatchScreen() {
   const { currentTheme, currentTextScale, calmMode, scaleText, getCalmModeStyles, getCalmModeTextColor } = useTheme();
@@ -52,6 +88,12 @@ export default function MindMatchScreen() {
   const [attempts, setAttempts] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [gridSize, setGridSize] = useState<'2x2' | '2x3' | '3x4'>('2x2');
+  const [currentLevel, setCurrentLevel] = useState(0);
+  const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(0);
+  const [showLevelComplete, setShowLevelComplete] = useState(false);
+  const [showLevelIntro, setShowLevelIntro] = useState(false);
+  const [levelTimer, setLevelTimer] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 400;
@@ -75,7 +117,7 @@ export default function MindMatchScreen() {
     if (gameStarted) {
       initializeGame();
     }
-  }, [gameStarted, gridSize]);
+  }, [gameStarted, currentLevel]);
 
   useEffect(() => {
     if (gameComplete) {
@@ -92,151 +134,112 @@ export default function MindMatchScreen() {
           useNativeDriver: true,
         }),
       ]).start();
-
       // Play success sound (in a real app)
       console.log('Playing success sound');
-      
-      // Show completion message
-      setTimeout(() => {
-        Alert.alert(
-          '🎉 Wonderful Job!',
-          `You completed the game in ${attempts} attempts! Your memory is working beautifully.`,
-          [
-            { text: 'Play Again', onPress: () => restartGame() },
-            { text: 'Back to Calm Zone', onPress: () => router.back() }
-          ]
-        );
-      }, 1000);
+      // Show completion overlay/modal instead of Alert
+      setTimeout(() => setShowLevelComplete(true), 800);
     }
   }, [gameComplete]);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
+  // Load max unlocked level from storage
+  useEffect(() => {
+    AsyncStorage.getItem('mindMatchMaxLevel').then(val => {
+      if (val !== null) setMaxUnlockedLevel(Number(val));
     });
-  };
+  }, []);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const getGridConfig = () => {
-    switch (gridSize) {
-      case '2x2':
-        return { pairs: 2, rows: 2, cols: 2 };
-      case '2x3':
-        return { pairs: 3, rows: 2, cols: 3 };
-      case '3x4':
-        return { pairs: 6, rows: 3, cols: 4 };
-      default:
-        return { pairs: 2, rows: 2, cols: 2 };
+  // Save max unlocked level on completion
+  useEffect(() => {
+    if (gameComplete && currentLevel > maxUnlockedLevel) {
+      setMaxUnlockedLevel(currentLevel);
+      AsyncStorage.setItem('mindMatchMaxLevel', String(currentLevel));
     }
-  };
+  }, [gameComplete]);
 
-  const initializeGame = () => {
-    const config = getGridConfig();
-    const selectedPairs = cardPairs.slice(0, config.pairs);
-    
-    // Create pairs of cards
-    const gameCards: Card[] = [];
-    selectedPairs.forEach((pair, index) => {
-      // First card of the pair
-      gameCards.push({
-        id: `${pair.name}-1`,
-        emoji: pair.emoji,
-        name: pair.name,
-        color: pair.color,
-        isFlipped: false,
-        isMatched: false,
-      });
-      // Second card of the pair
-      gameCards.push({
-        id: `${pair.name}-2`,
-        emoji: pair.emoji,
-        name: pair.name,
-        color: pair.color,
-        isFlipped: false,
-        isMatched: false,
-      });
-    });
+  // Show level intro before each level
+  useEffect(() => {
+    if (gameStarted) {
+      setShowLevelIntro(true);
+      setTimeout(() => setShowLevelIntro(false), 2000); // Show intro for 2 seconds
+    }
+  }, [gameStarted, currentLevel]);
 
-    // Shuffle cards
-    const shuffledCards = gameCards.sort(() => Math.random() - 0.5);
-    setCards(shuffledCards);
-    setFlippedCards([]);
-    setMatchedPairs(0);
-    setGameComplete(false);
-    setAttempts(0);
-  };
+  // Time limit logic
+  useEffect(() => {
+    if (gameStarted && !showLevelIntro && !showLevelComplete) {
+      const config = getGridConfig();
+      if (config.timeLimit) {
+        setTimeLeft(config.timeLimit);
+        if (levelTimer) clearInterval(levelTimer);
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev === 1) {
+              clearInterval(timer);
+              setGameComplete(true);
+              setShowLevelComplete(true);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        setLevelTimer(timer);
+        return () => clearInterval(timer);
+      }
+    }
+    // Cleanup
+    return () => { if (levelTimer) clearInterval(levelTimer); };
+  }, [gameStarted, showLevelIntro, currentLevel, showLevelComplete]);
 
+  // --- PEXESO LOGIC REFACTOR ---
+  // In handleCardPress:
   const handleCardPress = (cardId: string) => {
-    if (flippedCards.length >= 2) return;
-    
+    if (flippedCards.length === 2) return; // Only allow two cards at a time
     const card = cards.find(c => c.id === cardId);
     if (!card || card.isFlipped || card.isMatched) return;
 
+    // Flip the selected card
+    const newCards = cards.map(c =>
+      c.id === cardId ? { ...c, isFlipped: true } : c
+    );
     const newFlippedCards = [...flippedCards, cardId];
+    setCards(newCards);
     setFlippedCards(newFlippedCards);
 
-    // Update card state
-    setCards(prevCards => 
-      prevCards.map(c => 
-        c.id === cardId ? { ...c, isFlipped: true } : c
-      )
-    );
-
-    // Check for match when two cards are flipped
     if (newFlippedCards.length === 2) {
       setAttempts(prev => prev + 1);
-      
-      const [firstCardId, secondCardId] = newFlippedCards;
-      const firstCard = cards.find(c => c.id === firstCardId);
-      const secondCard = cards.find(c => c.id === secondCardId);
-
+      const [firstId, secondId] = newFlippedCards;
+      const firstCard = newCards.find(c => c.id === firstId);
+      const secondCard = newCards.find(c => c.id === secondId);
       if (firstCard && secondCard && firstCard.name === secondCard.name) {
-        // Match found!
+        // Match found
         setTimeout(() => {
-          setCards(prevCards => 
-            prevCards.map(c => 
-              c.id === firstCardId || c.id === secondCardId 
-                ? { ...c, isMatched: true }
-                : c
+          setCards(prevCards =>
+            prevCards.map(c =>
+              c.id === firstId || c.id === secondId ? { ...c, isMatched: true } : c
             )
           );
-          setMatchedPairs(prev => prev + 1);
           setFlippedCards([]);
-          
-          // Play match sound
-          console.log('Playing match sound - Nice work!');
-          
-          // Check if game is complete
-          const config = getGridConfig();
-          if (matchedPairs + 1 === config.pairs) {
-            setGameComplete(true);
-          }
-        }, 1000);
+          setMatchedPairs(prev => {
+            const newMatched = prev + 1;
+            // Check for win immediately after updating matched pairs
+            const config = getGridConfig();
+            if (newMatched === config.pairs) {
+              setGameComplete(true);
+              setShowLevelComplete(true);
+            }
+            return newMatched;
+          });
+        }, 800);
       } else {
         // No match
         setTimeout(() => {
-          setCards(prevCards => 
-            prevCards.map(c => 
-              c.id === firstCardId || c.id === secondCardId 
-                ? { ...c, isFlipped: false }
-                : c
+          setCards(prevCards =>
+            prevCards.map(c =>
+              c.id === firstId || c.id === secondId ? { ...c, isFlipped: false } : c
             )
           );
           setFlippedCards([]);
-          
-          // Play try again sound
-          console.log('Playing try again sound - Almost! Try again.');
-        }, 1500);
+        }, 1200);
       }
     }
   };
@@ -273,6 +276,86 @@ export default function MindMatchScreen() {
     ];
     const randomEncouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
     console.log('Playing voice encouragement:', randomEncouragement);
+  };
+
+  // Next Level handler
+  const handleNextLevel = () => {
+    if (currentLevel < LEVELS.length - 1) {
+      setCurrentLevel(currentLevel + 1);
+      setShowLevelComplete(false);
+      setGameStarted(false);
+      setGameComplete(false);
+      setTimeout(() => setGameStarted(true), 100); // trigger new game
+    }
+  };
+  // Play Again handler
+  const handleReplayLevel = () => {
+    setShowLevelComplete(false);
+    setGameStarted(false);
+    setGameComplete(false);
+    setTimeout(() => setGameStarted(true), 100);
+  };
+  // Resume from last unlocked
+  const handleResume = () => {
+    setCurrentLevel(maxUnlockedLevel);
+    setGameStarted(true);
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  // Replace gridSize/gridConfig logic with LEVELS
+  const getGridConfig = () => LEVELS[currentLevel] || LEVELS[LEVELS.length - 1];
+
+  // Update initializeGame to use currentLevel
+  const initializeGame = () => {
+    const config = getGridConfig();
+    const selectedPairs = cardPairs.slice(0, config.pairs);
+    
+    // Create pairs of cards
+    const gameCards: Card[] = [];
+    selectedPairs.forEach((pair, index) => {
+      // First card of the pair
+      gameCards.push({
+        id: `${pair.name}-1`,
+        emoji: pair.emoji,
+        name: pair.name,
+        color: pair.color,
+        isFlipped: false,
+        isMatched: false,
+      });
+      // Second card of the pair
+      gameCards.push({
+        id: `${pair.name}-2`,
+        emoji: pair.emoji,
+        name: pair.name,
+        color: pair.color,
+        isFlipped: false,
+        isMatched: false,
+      });
+    });
+
+    // Shuffle once
+    const shuffledCards = [...gameCards].sort(() => Math.random() - 0.5);
+    setCards(shuffledCards);
+    setFlippedCards([]);
+    setMatchedPairs(0);
+    setGameComplete(false);
+    setAttempts(0);
   };
 
   const config = getGridConfig();
@@ -320,53 +403,71 @@ export default function MindMatchScreen() {
         )}
       </View>
 
-      <Animated.View style={[styles.mainContent, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.mainContent, { opacity: fadeAnim }]}> 
+        {showLevelIntro && (
+          <View style={styles.levelIntroOverlay}>
+            <View style={styles.levelIntroBox}>
+              <Text style={styles.levelIntroTitle}>Level {currentLevel + 1}</Text>
+              <Text style={styles.levelIntroDesc}>{getGridConfig().description}</Text>
+              <Text style={styles.levelIntroDetails}>
+                {getGridConfig().pairs * 2} cards, {getGridConfig().rows}x{getGridConfig().cols} grid
+                {getGridConfig().timeLimit ? `, ${getGridConfig().timeLimit}s` : ''}
+              </Text>
+            </View>
+          </View>
+        )}
         {!gameStarted ? (
-          // Difficulty Selection Screen
-          <View style={styles.difficultyScreen}>
+          // Level Select Grid
+          <View style={styles.levelSelectScreen}>
             <View style={styles.welcomeSection}>
-              <Text style={[styles.welcomeTitle, { color: getCalmModeTextColor() }]}>
-                Welcome to Mind Match! 🌟
-              </Text>
-              <Text style={[styles.welcomeText, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>
-                This gentle game helps exercise your memory. Choose how many cards you'd like to play with:
-              </Text>
+              <Text style={[styles.welcomeTitle, { color: getCalmModeTextColor() }]}>Select a Level</Text>
+              <Text style={[styles.welcomeText, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>Progress at your own pace. Completed levels are marked, locked levels are greyed out.</Text>
             </View>
-
-            <View style={styles.difficultyOptions}>
-              <TouchableOpacity
-                style={[styles.difficultyCard, styles.easyCard]}
-                onPress={() => handleDifficultySelect('2x2')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.difficultyEmoji}>🌸</Text>
-                <Text style={styles.difficultyTitle}>Gentle Start</Text>
-                <Text style={styles.difficultySubtitle}>4 cards (2 pairs)</Text>
-                <Text style={styles.difficultyDescription}>Perfect for a relaxing game</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.difficultyCard, styles.mediumCard]}
-                onPress={() => handleDifficultySelect('2x3')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.difficultyEmoji}>🌻</Text>
-                <Text style={styles.difficultyTitle}>Comfortable</Text>
-                <Text style={styles.difficultySubtitle}>6 cards (3 pairs)</Text>
-                <Text style={styles.difficultyDescription}>A nice gentle challenge</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.difficultyCard, styles.challengeCard]}
-                onPress={() => handleDifficultySelect('3x4')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.difficultyEmoji}>🌺</Text>
-                <Text style={styles.difficultyTitle}>Engaging</Text>
-                <Text style={styles.difficultySubtitle}>12 cards (6 pairs)</Text>
-                <Text style={styles.difficultyDescription}>For when you're feeling sharp</Text>
-              </TouchableOpacity>
+            <View style={styles.levelGridWrapper}>
+              <Animated.ScrollView contentContainerStyle={styles.levelGrid} horizontal={false} showsVerticalScrollIndicator={false}>
+                {LEVELS.map((level, idx) => {
+                  const isLocked = idx > maxUnlockedLevel;
+                  const isCompleted = idx < maxUnlockedLevel;
+                  const isCurrent = idx === maxUnlockedLevel;
+                  return (
+                    <Animated.View key={idx} style={[styles.levelCard, isLocked && styles.levelCardLocked, isCurrent && styles.levelCardCurrent]}> 
+                      <TouchableOpacity
+                        disabled={isLocked}
+                        style={styles.levelCardTouchable}
+                        onPress={() => {
+                          setCurrentLevel(idx);
+                          setGameStarted(true);
+                        }}
+                        activeOpacity={isLocked ? 1 : 0.8}
+                      >
+                        <View style={styles.levelIconWrapper}>
+                          {isLocked ? (
+                            <Lock size={32} color="#A9A9A9" strokeWidth={2} />
+                          ) : isCompleted ? (
+                            <Check size={32} color="#4CAF50" strokeWidth={2} />
+                          ) : (
+                            <Star size={32} color="#FFD700" strokeWidth={2} />
+                          )}
+                        </View>
+                        <Text style={styles.levelNumber}>Level {idx + 1}</Text>
+                        <Text style={styles.levelDetails}>{level.pairs * 2} cards ({level.pairs} pairs)</Text>
+                        {isLocked && <Text style={styles.lockedText}>Locked</Text>}
+                        {isCurrent && !isLocked && (
+                          <Animated.View style={styles.levelUnlockAnim}>
+                            <Text style={styles.levelUnlockText}>New!</Text>
+                          </Animated.View>
+                        )}
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
+              </Animated.ScrollView>
             </View>
+            {maxUnlockedLevel > 0 && (
+              <TouchableOpacity style={styles.resumeButton} onPress={handleResume} activeOpacity={0.8}>
+                <Text style={styles.resumeText}>Resume from Level {maxUnlockedLevel + 1}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           // Game Screen
@@ -438,17 +539,24 @@ export default function MindMatchScreen() {
             </View>
 
             {/* Encouragement Message */}
-            <View style={styles.encouragementSection}>
-              <Heart size={scaleText(20)} color="#FF69B4" strokeWidth={2} />
-              <Text style={[styles.encouragementText, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>
-                {gameComplete 
-                  ? "You did beautifully! Your memory is working wonderfully."
-                  : flippedCards.length === 2 
+            {!showLevelComplete && (
+              <View style={styles.encouragementSection}>
+                <Heart size={scaleText(20)} color="#FF69B4" strokeWidth={2} />
+                <Text style={[styles.encouragementText, { color: calmMode ? '#B0B0B0' : currentTheme.colors.textSecondary }]}>
+                  {flippedCards.length === 2 
                     ? "Take your time, you're doing great!"
                     : "Tap any card to start. You've got this!"
-                }
-              </Text>
-            </View>
+                  }
+                </Text>
+              </View>
+            )}
+
+            {/* Show timer if time limit is set */}
+            {gameStarted && !showLevelIntro && !showLevelComplete && getGridConfig().timeLimit && (
+              <View style={styles.timerBar}>
+                <Text style={styles.timerText}>Time Left: {timeLeft}s</Text>
+              </View>
+            )}
           </View>
         )}
       </Animated.View>
@@ -530,6 +638,49 @@ export default function MindMatchScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Level Complete Overlay - always rendered last for stacking */}
+      {showLevelComplete && (
+        <View
+          style={[
+            styles.levelCompleteOverlay,
+            {
+              position: typeof window !== 'undefined' ? 'fixed' : 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99999,
+              pointerEvents: 'auto',
+              backgroundColor: 'rgba(0,255,0,0.5)',
+              borderWidth: 5,
+              borderColor: 'magenta',
+            },
+          ]}
+        >
+          <Text style={{ color: 'white', fontSize: 32, backgroundColor: 'red', borderWidth: 2, borderColor: 'yellow' }}>Level Complete!</Text>
+          <View style={styles.levelCompleteBox}>
+            <Trophy size={scaleText(40)} color="#FFD700" strokeWidth={2} />
+            <Text style={styles.levelCompleteTitle}>{WIN_OVERLAY_TEXT.getTitle(currentLevel)}</Text>
+            <Text style={styles.levelCompleteText}>{WIN_OVERLAY_TEXT.getDescription(attempts)}</Text>
+            <View style={styles.levelCompleteButtons}>
+              <TouchableOpacity style={styles.levelButton} onPress={handleReplayLevel} activeOpacity={0.8}>
+                <Text style={styles.levelButtonText}>{WIN_OVERLAY_TEXT.playAgain}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.levelButton, currentLevel >= LEVELS.length - 1 && styles.levelButtonDisabled]}
+                onPress={handleNextLevel}
+                activeOpacity={currentLevel < LEVELS.length - 1 ? 0.8 : 1}
+                disabled={currentLevel >= LEVELS.length - 1}
+              >
+                <Text style={styles.levelButtonText}>
+                  {currentLevel < LEVELS.length - 1 ? WIN_OVERLAY_TEXT.nextLevel : WIN_OVERLAY_TEXT.allLevelsComplete}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -539,6 +690,8 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
     flex: 1,
     backgroundColor: theme.colors.background,
     paddingHorizontal: isSmallScreen ? 8 : isLargeScreen ? 40 : 20,
+    minHeight: scaleText(1600), // elongate the entire screen
+    paddingBottom: scaleText(400), // add extra space at the bottom
   },
   calmOverlay: {
     position: 'absolute',
@@ -767,8 +920,9 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   gameScreen: {
     flex: 1,
     paddingHorizontal: isSmallScreen ? 8 : isLargeScreen ? 40 : scaleText(20),
-    paddingTop: scaleText(20),
-    paddingBottom: scaleText(120),
+    paddingTop: scaleText(80), // even more space at the top
+    paddingBottom: scaleText(400), // even more space at the bottom
+    minHeight: scaleText(1400), // even longer game area
   },
   gameStats: {
     flexDirection: 'row',
@@ -809,6 +963,7 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
     gap: isSmallScreen ? scaleText(6) : scaleText(12),
     marginBottom: isSmallScreen ? scaleText(16) : scaleText(30),
     paddingHorizontal: isSmallScreen ? scaleText(4) : scaleText(10),
+    minHeight: scaleText(900), // even longer grid area
   },
   gameCard: {
     width: isSmallScreen ? scaleText(60) : config.cols === 2 ? scaleText(120) : config.cols === 3 ? scaleText(100) : scaleText(80),
@@ -960,5 +1115,236 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
     marginTop: scaleText(4),
     lineHeight: scaleText(16),
     textAlign: 'center',
+  },
+  levelSelectScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: scaleText(20),
+  },
+  levelGridWrapper: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  levelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: scaleText(18),
+    paddingBottom: scaleText(30),
+  },
+  levelCard: {
+    width: scaleText(120),
+    height: scaleText(150),
+    backgroundColor: '#fff',
+    borderRadius: scaleText(18),
+    margin: scaleText(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  levelCardLocked: {
+    backgroundColor: '#F0F0F0',
+    opacity: 0.5,
+  },
+  levelCardCurrent: {
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  levelCardTouchable: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  levelIconWrapper: {
+    marginBottom: scaleText(10),
+  },
+  levelNumber: {
+    fontSize: scaleText(20),
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: scaleText(4),
+  },
+  levelDetails: {
+    fontSize: scaleText(14),
+    color: '#888',
+    marginBottom: scaleText(4),
+  },
+  levelUnlockAnim: {
+    marginTop: scaleText(6),
+    backgroundColor: '#FFD700',
+    borderRadius: scaleText(8),
+    paddingHorizontal: scaleText(10),
+    paddingVertical: scaleText(2),
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  levelUnlockText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: scaleText(14),
+  },
+  levelCompleteOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 255, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 99999,
+    minHeight: '100%',
+    minWidth: '100%',
+    borderWidth: 5,
+    borderColor: 'magenta',
+  },
+  levelCompleteBox: {
+    backgroundColor: '#fff',
+    borderRadius: scaleText(24),
+    padding: scaleText(40),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+    maxWidth: scaleText(400),
+    borderWidth: 2, // debug border
+    borderColor: 'blue', // debug border color
+  },
+  levelCompleteTitle: {
+    fontSize: scaleText(36),
+    fontWeight: '700',
+    color: '#222', // ensure dark text
+    marginTop: scaleText(20),
+    marginBottom: scaleText(10),
+    lineHeight: scaleText(44),
+  },
+  levelCompleteText: {
+    fontSize: scaleText(18),
+    fontWeight: '500',
+    color: '#333', // ensure dark text
+    marginBottom: scaleText(25),
+    textAlign: 'center',
+    lineHeight: scaleText(24),
+  },
+  levelCompleteButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    gap: scaleText(15),
+  },
+  levelButton: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    borderRadius: scaleText(16),
+    paddingVertical: scaleText(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  levelButtonText: {
+    fontSize: scaleText(18),
+    fontWeight: '700',
+    color: '#222', // ensure dark text
+    lineHeight: scaleText(24),
+    textAlign: 'center',
+    width: '100%',
+  },
+  levelButtonDisabled: {
+    backgroundColor: '#A9A9A9',
+    borderColor: '#A9A9A9',
+    opacity: 0.7,
+  },
+  lockedText: {
+    fontSize: scaleText(14),
+    fontWeight: '600',
+    color: '#808080',
+    marginTop: scaleText(10),
+  },
+  resumeButton: {
+    backgroundColor: calmMode ? 'rgba(255, 255, 255, 0.1)' : theme.colors.surface,
+    borderRadius: scaleText(16),
+    paddingVertical: scaleText(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: calmMode ? 'rgba(255, 255, 255, 0.2)' : theme.colors.border,
+    marginTop: scaleText(20),
+  },
+  resumeText: {
+    fontSize: scaleText(18),
+    fontWeight: '700',
+    color: theme.colors.primary,
+    lineHeight: scaleText(24),
+  },
+  levelIntroOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  levelIntroBox: {
+    backgroundColor: '#fff',
+    borderRadius: scaleText(24),
+    padding: scaleText(40),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  levelIntroTitle: {
+    fontSize: scaleText(36),
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: scaleText(10),
+  },
+  levelIntroDesc: {
+    fontSize: scaleText(22),
+    fontWeight: '600',
+    color: '#9370DB',
+    marginBottom: scaleText(10),
+  },
+  levelIntroDetails: {
+    fontSize: scaleText(16),
+    color: '#888',
+    textAlign: 'center',
+  },
+  timerBar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFD700',
+    borderRadius: scaleText(12),
+    padding: scaleText(10),
+    margin: scaleText(10),
+  },
+  timerText: {
+    fontSize: scaleText(18),
+    fontWeight: '700',
+    color: '#333',
   },
 });

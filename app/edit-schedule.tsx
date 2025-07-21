@@ -16,7 +16,7 @@ import { ArrowLeft, Calendar, Clock, Save, Trash2, ChevronDown, Check } from 'lu
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContacts } from '@/contexts/ContactsContext';
-import { useSchedule, ScheduleEntry } from '@/contexts/ScheduleContext';
+import { useSchedule, ScheduleEntry, VoicePromptMeta } from '@/contexts/ScheduleContext';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import { usePhotoUpload } from '../modules/core/hooks/usePhotoUpload';
@@ -25,7 +25,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 export default function EditScheduleScreen() {
   const { currentTheme, currentTextScale, calmMode, scaleText, getCalmModeStyles, getCalmModeTextColor } = useTheme();
   const { contacts } = useContacts();
-  const { addScheduleEntry, updateScheduleEntry, deleteScheduleEntry } = useSchedule();
+  const { addScheduleEntry, updateScheduleEntry, deleteScheduleEntry, scheduleEntries, addVoicePrompt, updateVoicePrompt, deleteVoicePrompt } = useSchedule();
   const [fadeAnim] = useState(new Animated.Value(0));
   const [currentTime, setCurrentTime] = useState(new Date());
   const router = useRouter();
@@ -40,6 +40,7 @@ export default function EditScheduleScreen() {
     assignedContact: '',
     reminderType: 'both',
     repeatOption: 'none',
+    voicePrompts: [], // Changed from voicePromptUrl to voicePrompts
   });
 
   // UI state
@@ -87,6 +88,18 @@ export default function EditScheduleScreen() {
     }
     return () => { if (timerInterval) clearInterval(timerInterval); setTimerInterval(null); };
   }, [isRecording]);
+
+  // If editing, find the entry and sync local state
+  useEffect(() => {
+    if (isEditMode && params.entryId) {
+      const entry = scheduleEntries.find(e => e.id === params.entryId);
+      if (entry) {
+        // Remove 'id' property for Omit<ScheduleEntry, 'id'>
+        const { id, ...rest } = entry;
+        setFormData(rest);
+      }
+    }
+  }, [isEditMode, params.entryId, scheduleEntries]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', {
@@ -160,9 +173,9 @@ export default function EditScheduleScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // On save, use context for add or update
   const handleSave = () => {
     if (!validateForm()) {
-      // Show error alert for empty activity name
       Alert.alert(
         'Missing Information',
         'Please enter an activity name before saving this entry.',
@@ -170,11 +183,11 @@ export default function EditScheduleScreen() {
       );
       return;
     }
-    
-    // Add the schedule entry
-    addScheduleEntry(formData);
-    
-    // Navigate back to schedule screen immediately after saving
+    if (isEditMode && params.entryId) {
+      updateScheduleEntry(params.entryId as string, { ...formData });
+    } else {
+      addScheduleEntry(formData);
+    }
     router.push('/schedule');
   };
 
@@ -232,22 +245,52 @@ export default function EditScheduleScreen() {
     setShowTimePicker(false);
   };
 
-  const handleUploadVoicePrompt = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
-    if (result.type === 'success') {
-      handleInputChange('voicePromptUrl', result.uri);
+  // Voice prompt handlers using context
+  const handleAddVoicePrompt = (prompt: VoicePromptMeta) => {
+    if (isEditMode && params.entryId) {
+      addVoicePrompt(params.entryId as string, prompt);
+    } else {
+      setFormData(prev => ({ ...prev, voicePrompts: [...prev.voicePrompts, prompt] }));
     }
   };
 
-  const handlePlayVoicePrompt = async () => {
-    if (!formData.voicePromptUrl) return;
+  const handleUpdateVoicePrompt = (index: number, prompt: VoicePromptMeta) => {
+    if (isEditMode && params.entryId) {
+      updateVoicePrompt(params.entryId as string, index, prompt);
+    } else {
+      setFormData(prev => {
+        const newPrompts = [...prev.voicePrompts];
+        newPrompts[index] = prompt;
+        return { ...prev, voicePrompts: newPrompts };
+      });
+    }
+  };
+
+  const handleDeleteVoicePrompt = (index: number) => {
+    if (isEditMode && params.entryId) {
+      deleteVoicePrompt(params.entryId as string, index);
+    } else {
+      setFormData(prev => ({ ...prev, voicePrompts: prev.voicePrompts.filter((_, i) => i !== index) }));
+    }
+    setRecordedUri(null);
+    setRecordModalVisible(false);
+  };
+
+  const handleReplacePrompt = (index: number) => {
+    setRecordedUri(null);
+    setRecordModalVisible(true);
+    // On save, call handleUpdateVoicePrompt(index, ...)
+  };
+
+  const handlePlayVoicePrompt = async (index: number) => {
+    if (!formData.voicePrompts[index]) return;
     try {
       if (audioPreview) {
         await audioPreview.unloadAsync();
         setAudioPreview(null);
         setIsPlaying(false);
       }
-      const { sound } = await Audio.Sound.createAsync({ uri: formData.voicePromptUrl });
+      const { sound } = await Audio.Sound.createAsync({ uri: formData.voicePrompts[index].uri });
       setAudioPreview(sound);
       setIsPlaying(true);
       await sound.playAsync();
@@ -316,20 +359,20 @@ export default function EditScheduleScreen() {
 
   const handleSaveRecordedPrompt = () => {
     if (recordedUri) {
-      handleInputChange('voicePromptUrl', recordedUri);
+      handleAddVoicePrompt({ uri: recordedUri });
       setRecordModalVisible(false);
     }
   };
 
-  const handleDeletePrompt = () => {
-    handleInputChange('voicePromptUrl', '');
-    setRecordedUri(null);
-    setRecordModalVisible(false);
+  const handleDeletePrompt = (index: number) => {
+    handleDeleteVoicePrompt(index);
   };
 
-  const handleReplacePrompt = () => {
-    setRecordedUri(null);
-    setRecordModalVisible(true);
+  const handleUploadVoicePrompt = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
+    if (result.type === 'success') {
+      handleAddVoicePrompt({ uri: result.uri });
+    }
   };
 
   const styles = createStyles(currentTheme, scaleText, calmMode, currentTextScale);
@@ -560,7 +603,7 @@ export default function EditScheduleScreen() {
               activeOpacity={0.8}
             >
               <Text style={{ color: currentTheme.colors.primary, fontWeight: '600' }}>
-                {formData.voicePromptUrl ? 'Replace Audio' : 'Upload Audio'}
+                {formData.voicePrompts.length > 0 ? 'Replace Audio' : 'Upload Audio'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -573,10 +616,10 @@ export default function EditScheduleScreen() {
               <MaterialIcons name="mic" size={scaleText(22)} color={currentTheme.colors.primary} />
               <Text style={{ color: currentTheme.colors.primary, fontWeight: '600', marginLeft: 6 }}>Record Voice Prompt</Text>
             </TouchableOpacity>
-            {formData.voicePromptUrl && (
+            {formData.voicePrompts.length > 0 && (
               <TouchableOpacity
                 style={[styles.playButton, { backgroundColor: isPlaying ? '#E0E0E0' : currentTheme.colors.surface }]}
-                onPress={handlePlayVoicePrompt}
+                onPress={() => handlePlayVoicePrompt(0)}
                 activeOpacity={0.8}
               >
                 <Text style={{ color: currentTheme.colors.primary, fontWeight: '600' }}>{isPlaying ? 'Playing...' : 'Play'}</Text>
@@ -584,11 +627,11 @@ export default function EditScheduleScreen() {
             )}
           </View>
           {/* If prompt exists, show Replace/Delete */}
-          {formData.voicePromptUrl && (
+          {formData.voicePrompts.length > 0 && (
             <View style={{ flexDirection: 'row', gap: scaleText(12), marginTop: 8 }}>
               <TouchableOpacity
                 style={[styles.uploadButton, { backgroundColor: '#fffbe6', borderColor: '#FFD700', borderWidth: 1 }]}
-                onPress={handleReplacePrompt}
+                onPress={() => handleReplacePrompt(0)}
                 activeOpacity={0.8}
                 accessibilityLabel="Replace Voice Prompt"
                 accessibilityRole="button"
@@ -598,7 +641,7 @@ export default function EditScheduleScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.uploadButton, { backgroundColor: '#ffeaea', borderColor: '#FF4444', borderWidth: 1 }]}
-                onPress={handleDeletePrompt}
+                onPress={() => handleDeletePrompt(0)}
                 activeOpacity={0.8}
                 accessibilityLabel="Delete Voice Prompt"
                 accessibilityRole="button"
@@ -1200,5 +1243,54 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
     color: '#888',
     fontSize: 16,
     fontWeight: '600',
+  },
+  voicePromptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: calmMode ? 'rgba(255, 255, 255, 0.1)' : theme.colors.surface,
+    borderRadius: scaleText(12),
+    paddingHorizontal: scaleText(16),
+    paddingVertical: scaleText(14),
+    marginBottom: scaleText(10),
+    borderWidth: 1,
+    borderColor: calmMode ? 'rgba(255, 255, 255, 0.2)' : theme.colors.border,
+  },
+  promptMeta: {
+    fontSize: scaleText(16),
+    fontWeight: '500',
+    color: theme.colors.text,
+    flex: 1,
+    marginRight: scaleText(10),
+  },
+  promptActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleText(10),
+  },
+  noPromptText: {
+    fontSize: scaleText(16),
+    fontWeight: '500',
+    color: calmMode ? '#A0A0A0' : '#888',
+    textAlign: 'center',
+    marginTop: scaleText(10),
+  },
+  addPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: calmMode ? 'rgba(255, 255, 255, 0.1)' : theme.colors.surface,
+    borderRadius: scaleText(12),
+    paddingVertical: scaleText(12),
+    paddingHorizontal: scaleText(20),
+    borderWidth: 1,
+    borderColor: calmMode ? 'rgba(255, 255, 255, 0.2)' : theme.colors.border,
+    alignSelf: 'center',
+    marginTop: scaleText(15),
+  },
+  addPromptText: {
+    fontSize: scaleText(16),
+    fontWeight: '600',
+    color: theme.colors.primary,
+    marginLeft: scaleText(8),
   },
 }); 

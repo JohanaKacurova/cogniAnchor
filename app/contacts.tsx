@@ -10,7 +10,7 @@ import {
   Image,
   FlatList,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContacts } from '@/contexts/ContactsContext';
 import { Feather } from '@expo/vector-icons';
@@ -22,6 +22,8 @@ export default function ContactsScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [currentTime, setCurrentTime] = useState(new Date());
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const speedDialMode = params.speedDial === 'true';
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [sound, setSound] = useState<any>(null);
 
@@ -97,6 +99,7 @@ export default function ContactsScreen() {
 
   // For demo, pick first 4 family/friends as favorites
   const favoriteContacts = contacts.filter(c => c.category === 'family' || c.category === 'friends').slice(0, 4);
+  const familyContacts = contacts.filter(c => c.category === 'family');
 
   // Play voice message logic
   const handlePlayMessage = async (contact: any) => {
@@ -141,12 +144,11 @@ export default function ContactsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Speed Dial Grid */}
-        {favoriteContacts.length > 0 && (
+        {speedDialMode ? (
           <View style={styles.speedDialSection}>
-            <Text style={styles.speedDialTitle}>Quick Call</Text>
+            <Text style={styles.speedDialTitle}>Family Speed Dial</Text>
             <View style={styles.speedDialGrid}>
-              {favoriteContacts.map(contact => (
+              {familyContacts.map(contact => (
                 <TouchableOpacity
                   key={contact.id}
                   style={styles.speedDialButton}
@@ -166,181 +168,215 @@ export default function ContactsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            <TouchableOpacity style={[styles.addContactButton, { backgroundColor: currentTheme.colors.primary, marginTop: 24 }]} onPress={() => router.back()}>
+              <Text style={styles.addContactEmoji}>⬅️</Text>
+              <Text style={styles.addContactText}>Back</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        {/* Header */}
-        <View style={styles.headerSection}>
-          <Text style={[styles.headerTitle, { color: getCalmModeTextColor() }]}>Your Contacts</Text>
-          <Text style={[styles.headerSubtitle, { color: calmMode ? '#B0B0B0' : currentTheme.colors.primary }]}>Tap anyone to call them</Text>
-        </View>
-        {/* Add Contact Button */}
-        <TouchableOpacity 
-          style={[styles.addContactButton, { backgroundColor: currentTheme.colors.primary }]}
-          onPress={handleAddContact}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.addContactEmoji}>➕</Text>
-          <Text style={styles.addContactText}>Add New Contact</Text>
-        </TouchableOpacity>
-        {/* Emergency Contact - Always at top */}
-        {contacts.filter(contact => contact.category === 'emergency').map((contact) => (
-          <TouchableOpacity
-            key={contact.id}
-            style={[styles.contactCard, styles.emergencyCard]}
-            onPress={() => handleCall(contact)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.emergencyBadge}>
-              <Text style={styles.emergencyText}>EMERGENCY</Text>
-            </View>
-            <View style={styles.contactContent}>
-              <View style={styles.contactPhotoContainer}>
-                {contact.photo ? (
-                  <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
-                ) : (
-                  <View style={[styles.contactPhotoPlaceholder, styles.emergencyPhotoPlaceholder]}>
-                    <Text style={[styles.contactInitials, styles.emergencyInitials]}>
-                      {getContactInitials(contact.name)}
-                    </Text>
-                  </View>
-                )}
+        ) : (
+          <>
+            {/* Speed Dial Grid */}
+            {favoriteContacts.length > 0 && (
+              <View style={styles.speedDialSection}>
+                <Text style={styles.speedDialTitle}>Quick Call</Text>
+                <View style={styles.speedDialGrid}>
+                  {favoriteContacts.map(contact => (
+                    <TouchableOpacity
+                      key={contact.id}
+                      style={styles.speedDialButton}
+                      onPress={() => handleCall(contact)}
+                      activeOpacity={0.85}
+                      accessibilityLabel={`Call ${contact.name}`}
+                      accessibilityRole="button"
+                    >
+                      {contact.photo ? (
+                        <Image source={{ uri: contact.photo }} style={styles.speedDialPhoto} />
+                      ) : (
+                        <View style={styles.speedDialPhotoPlaceholder}>
+                          <Text style={styles.speedDialInitials}>{getContactInitials(contact.name)}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.speedDialName}>{contact.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <View style={styles.contactInfo}>
-                <Text style={[styles.contactName, styles.emergencyName]}>{contact.name}</Text>
-                <Text style={[styles.contactPhone, styles.emergencyPhone]}>{contact.phone}</Text>
-                <Text style={[styles.contactDescription, styles.emergencyDescription]}>{contact.description}</Text>
+            )}
+            {/* Header */}
+            <View style={styles.headerSection}>
+              <Text style={[styles.headerTitle, { color: getCalmModeTextColor() }]}>Your Contacts</Text>
+              <Text style={[styles.headerSubtitle, { color: calmMode ? '#B0B0B0' : currentTheme.colors.primary }]}>Tap anyone to call them</Text>
+            </View>
+            {/* Add Contact Button */}
+            <TouchableOpacity 
+              style={[styles.addContactButton, { backgroundColor: currentTheme.colors.primary }]}
+              onPress={handleAddContact}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.addContactEmoji}>➕</Text>
+              <Text style={styles.addContactText}>Add New Contact</Text>
+            </TouchableOpacity>
+            {/* Emergency Contact - Always at top */}
+            {contacts.filter(contact => contact.category === 'emergency').map((contact) => (
+              <TouchableOpacity
+                key={contact.id}
+                style={[styles.contactCard, styles.emergencyCard]}
+                onPress={() => handleCall(contact)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.emergencyBadge}>
+                  <Text style={styles.emergencyText}>EMERGENCY</Text>
+                </View>
+                <View style={styles.contactContent}>
+                  <View style={styles.contactPhotoContainer}>
+                    {contact.photo ? (
+                      <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
+                    ) : (
+                      <View style={[styles.contactPhotoPlaceholder, styles.emergencyPhotoPlaceholder]}>
+                        <Text style={[styles.contactInitials, styles.emergencyInitials]}>
+                          {getContactInitials(contact.name)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.contactInfo}>
+                    <Text style={[styles.contactName, styles.emergencyName]}>{contact.name}</Text>
+                    <Text style={[styles.contactPhone, styles.emergencyPhone]}>{contact.phone}</Text>
+                    <Text style={[styles.contactDescription, styles.emergencyDescription]}>{contact.description}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+            {/* Family Contacts */}
+            {contacts.filter(contact => contact.category === 'family').length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryEmoji}>{getCategoryEmoji('family')}</Text>
+                  <Text style={[styles.categoryTitle, { color: getCalmModeTextColor() }]}>Family</Text>
+                </View>
+                {contacts.filter(contact => contact.category === 'family').map((contact) => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactCard}
+                    onPress={() => handleCall(contact)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.contactContent}>
+                      <View style={styles.contactPhotoContainer}>
+                        {contact.photo ? (
+                          <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
+                        ) : (
+                          <View style={[styles.contactPhotoPlaceholder, { backgroundColor: calmMode ? 'rgba(255, 228, 225, 0.3)' : '#FFE4E1' }]}>
+                            <Text style={[styles.contactInitials, { color: calmMode ? '#FF69B4' : '#FF69B4' }]}>
+                              {getContactInitials(contact.name)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.contactInfo}>
+                        <Text style={[styles.contactName, { color: getCalmModeTextColor() }]}>{contact.name}</Text>
+                        <Text style={[styles.contactRelationship, { color: calmMode ? '#FF8FA3' : '#FF69B4' }]}>{contact.relationship}</Text>
+                        <Text style={[styles.contactDescription, { color: calmMode ? '#A0A0A0' : currentTheme.colors.textSecondary }]}>{contact.description}</Text>
+                        {/* Play Message Button */}
+                        {contact.voiceMessage ? (
+                          <TouchableOpacity
+                            style={styles.playMessageButton}
+                            onPress={() => handlePlayMessage(contact)}
+                            activeOpacity={0.8}
+                            accessibilityLabel={`Play message from ${contact.name}`}
+                            accessibilityRole="button"
+                            disabled={playingId === contact.id}
+                          >
+                            <Text style={styles.playMessageText}>{playingId === contact.id ? 'Playing...' : 'Play Message'}</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={[styles.playMessageButton, { backgroundColor: '#eee' }]}
+                            accessibilityLabel={`No message from ${contact.name}`}
+                            accessibilityRole="button"
+                            accessible
+                          >
+                            <Text style={[styles.playMessageText, { color: '#aaa' }]}>Play Message</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-        {/* Family Contacts */}
-        {contacts.filter(contact => contact.category === 'family').length > 0 && (
-          <View style={styles.categorySection}>
-            <View style={styles.categoryHeader}>
-              <Text style={styles.categoryEmoji}>{getCategoryEmoji('family')}</Text>
-              <Text style={[styles.categoryTitle, { color: getCalmModeTextColor() }]}>Family</Text>
-            </View>
-            {contacts.filter(contact => contact.category === 'family').map((contact) => (
-              <TouchableOpacity
-                key={contact.id}
-                style={styles.contactCard}
-                onPress={() => handleCall(contact)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.contactContent}>
-                  <View style={styles.contactPhotoContainer}>
-                    {contact.photo ? (
-                      <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
-                    ) : (
-                      <View style={[styles.contactPhotoPlaceholder, { backgroundColor: calmMode ? 'rgba(255, 228, 225, 0.3)' : '#FFE4E1' }]}>
-                        <Text style={[styles.contactInitials, { color: calmMode ? '#FF69B4' : '#FF69B4' }]}>
-                          {getContactInitials(contact.name)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.contactInfo}>
-                    <Text style={[styles.contactName, { color: getCalmModeTextColor() }]}>{contact.name}</Text>
-                    <Text style={[styles.contactRelationship, { color: calmMode ? '#FF8FA3' : '#FF69B4' }]}>{contact.relationship}</Text>
-                    <Text style={[styles.contactDescription, { color: calmMode ? '#A0A0A0' : currentTheme.colors.textSecondary }]}>{contact.description}</Text>
-                    {/* Play Message Button */}
-                    {contact.voiceMessage ? (
-                      <TouchableOpacity
-                        style={styles.playMessageButton}
-                        onPress={() => handlePlayMessage(contact)}
-                        activeOpacity={0.8}
-                        accessibilityLabel={`Play message from ${contact.name}`}
-                        accessibilityRole="button"
-                        disabled={playingId === contact.id}
-                      >
-                        <Text style={styles.playMessageText}>{playingId === contact.id ? 'Playing...' : 'Play Message'}</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={[styles.playMessageButton, { backgroundColor: '#eee' }]}
-                        accessibilityLabel={`No message from ${contact.name}`}
-                        accessibilityRole="button"
-                        accessible
-                      >
-                        <Text style={[styles.playMessageText, { color: '#aaa' }]}>Play Message</Text>
-                      </View>
-                    )}
-                  </View>
+            )}
+            {/* Medical Contacts */}
+            {contacts.filter(contact => contact.category === 'medical').length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryEmoji}>{getCategoryEmoji('medical')}</Text>
+                  <Text style={[styles.categoryTitle, { color: getCalmModeTextColor() }]}>Medical Care</Text>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        {/* Medical Contacts */}
-        {contacts.filter(contact => contact.category === 'medical').length > 0 && (
-          <View style={styles.categorySection}>
-            <View style={styles.categoryHeader}>
-              <Text style={styles.categoryEmoji}>{getCategoryEmoji('medical')}</Text>
-              <Text style={[styles.categoryTitle, { color: getCalmModeTextColor() }]}>Medical Care</Text>
-            </View>
-            {contacts.filter(contact => contact.category === 'medical').map((contact) => (
-              <TouchableOpacity
-                key={contact.id}
-                style={styles.contactCard}
-                onPress={() => handleCall(contact)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.contactContent}>
-                  <View style={styles.contactPhotoContainer}>
-                    {contact.photo ? (
-                      <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
-                    ) : (
-                      <View style={[styles.contactPhotoPlaceholder, { backgroundColor: calmMode ? 'rgba(232, 245, 232, 0.3)' : '#E8F5E8' }]}>
-                        <Text style={[styles.contactInitials, { color: calmMode ? '#50CD50' : '#32CD32' }]}>
-                          {getContactInitials(contact.name)}
-                        </Text>
+                {contacts.filter(contact => contact.category === 'medical').map((contact) => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactCard}
+                    onPress={() => handleCall(contact)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.contactContent}>
+                      <View style={styles.contactPhotoContainer}>
+                        {contact.photo ? (
+                          <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
+                        ) : (
+                          <View style={[styles.contactPhotoPlaceholder, { backgroundColor: calmMode ? 'rgba(232, 245, 232, 0.3)' : '#E8F5E8' }]}>
+                            <Text style={[styles.contactInitials, { color: calmMode ? '#50CD50' : '#32CD32' }]}>
+                              {getContactInitials(contact.name)}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    )}
-                  </View>
-                  <View style={styles.contactInfo}>
-                    <Text style={[styles.contactName, { color: getCalmModeTextColor() }]}>{contact.name}</Text>
-                    <Text style={[styles.contactRelationship, { color: calmMode ? '#50CD50' : '#32CD32' }]}>{contact.relationship}</Text>
-                    <Text style={[styles.contactDescription, { color: calmMode ? '#A0A0A0' : currentTheme.colors.textSecondary }]}>{contact.description}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        {/* Friends Contacts */}
-        {contacts.filter(contact => contact.category === 'friends').length > 0 && (
-          <View style={styles.categorySection}>
-            <View style={styles.categoryHeader}>
-              <Text style={styles.categoryEmoji}>{getCategoryEmoji('friends')}</Text>
-              <Text style={[styles.categoryTitle, { color: getCalmModeTextColor() }]}>Friends</Text>
-            </View>
-            {contacts.filter(contact => contact.category === 'friends').map((contact) => (
-              <TouchableOpacity
-                key={contact.id}
-                style={styles.contactCard}
-                onPress={() => handleCall(contact)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.contactContent}>
-                  <View style={styles.contactPhotoContainer}>
-                    {contact.photo ? (
-                      <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
-                    ) : (
-                      <View style={[styles.contactPhotoPlaceholder, { backgroundColor: calmMode ? 'rgba(230, 243, 255, 0.3)' : '#E6F3FF' }]}>
-                        <Text style={[styles.contactInitials, { color: calmMode ? '#6BA2D4' : '#4682B4' }]}>
-                          {getContactInitials(contact.name)}
-                        </Text>
+                      <View style={styles.contactInfo}>
+                        <Text style={[styles.contactName, { color: getCalmModeTextColor() }]}>{contact.name}</Text>
+                        <Text style={[styles.contactRelationship, { color: calmMode ? '#50CD50' : '#32CD32' }]}>{contact.relationship}</Text>
+                        <Text style={[styles.contactDescription, { color: calmMode ? '#A0A0A0' : currentTheme.colors.textSecondary }]}>{contact.description}</Text>
                       </View>
-                    )}
-                  </View>
-                  <View style={styles.contactInfo}>
-                    <Text style={[styles.contactName, { color: getCalmModeTextColor() }]}>{contact.name}</Text>
-                    <Text style={[styles.contactRelationship, { color: calmMode ? '#6BA2D4' : '#4682B4' }]}>{contact.relationship}</Text>
-                    <Text style={[styles.contactDescription, { color: calmMode ? '#A0A0A0' : currentTheme.colors.textSecondary }]}>{contact.description}</Text>
-                  </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {/* Friends Contacts */}
+            {contacts.filter(contact => contact.category === 'friends').length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryEmoji}>{getCategoryEmoji('friends')}</Text>
+                  <Text style={[styles.categoryTitle, { color: getCalmModeTextColor() }]}>Friends</Text>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+                {contacts.filter(contact => contact.category === 'friends').map((contact) => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactCard}
+                    onPress={() => handleCall(contact)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.contactContent}>
+                      <View style={styles.contactPhotoContainer}>
+                        {contact.photo ? (
+                          <Image source={{ uri: contact.photo }} style={styles.contactPhoto} />
+                        ) : (
+                          <View style={[styles.contactPhotoPlaceholder, { backgroundColor: calmMode ? 'rgba(230, 243, 255, 0.3)' : '#E6F3FF' }]}>
+                            <Text style={[styles.contactInitials, { color: calmMode ? '#6BA2D4' : '#4682B4' }]}>
+                              {getContactInitials(contact.name)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.contactInfo}>
+                        <Text style={[styles.contactName, { color: getCalmModeTextColor() }]}>{contact.name}</Text>
+                        <Text style={[styles.contactRelationship, { color: calmMode ? '#6BA2D4' : '#4682B4' }]}>{contact.relationship}</Text>
+                        <Text style={[styles.contactDescription, { color: calmMode ? '#A0A0A0' : currentTheme.colors.textSecondary }]}>{contact.description}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
         )}
       </Animated.ScrollView>
       <View style={styles.bottomNav}>

@@ -504,20 +504,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   volumePresets: {
     flexDirection: 'row',
-    justifyContent: 'center', // Center the buttons
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: scaleText(12),
   },
   presetButton: {
-    minWidth: scaleText(100), // Increased width for text
-    height: scaleText(44),
+    backgroundColor: 'rgba(255, 255, 224, 0.7)', // Light yellow background
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: scaleText(6),
-    paddingHorizontal: scaleText(12),
+    paddingHorizontal: scaleText(18),
+    paddingVertical: scaleText(10),
+    minHeight: scaleText(44),
   },
   presetText: {
     fontSize: scaleText(18),
@@ -529,20 +529,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   speedOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center', // Center the buttons
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: scaleText(12),
   },
   speedButton: {
-    minWidth: scaleText(100), // Increased width for text
-    height: scaleText(44),
+    backgroundColor: 'rgba(255, 255, 224, 0.7)', // Light yellow background
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: scaleText(6),
-    paddingHorizontal: scaleText(12),
+    paddingHorizontal: scaleText(18),
+    paddingVertical: scaleText(10),
+    minHeight: scaleText(44),
   },
   speedEmoji: {
     fontSize: scaleText(24),
@@ -561,20 +561,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   colorOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center', // Center the buttons
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: scaleText(12),
   },
   colorCard: {
-    minWidth: scaleText(100), // Increased width for text
-    height: scaleText(100),
+    backgroundColor: 'rgba(255, 255, 224, 0.7)', // Light yellow background
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: scaleText(6),
-    paddingHorizontal: scaleText(12),
+    paddingHorizontal: scaleText(18),
+    paddingVertical: scaleText(10),
+    minHeight: scaleText(100),
   },
   colorSwatch: {
     width: '100%',
@@ -595,20 +595,20 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
   },
   sizeOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center', // Center the buttons
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: scaleText(12),
   },
   sizeCard: {
-    minWidth: scaleText(100), // Increased width for text
-    height: scaleText(100),
+    backgroundColor: 'rgba(255, 255, 224, 0.7)', // Light yellow background
     borderWidth: 2,
     borderColor: theme.colors.border,
     borderRadius: scaleText(16),
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: scaleText(6),
-    paddingHorizontal: scaleText(12),
+    paddingHorizontal: scaleText(18),
+    paddingVertical: scaleText(10),
+    minHeight: scaleText(100),
   },
   sizePreview: {
     fontSize: scaleText(24),

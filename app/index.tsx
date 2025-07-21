@@ -19,6 +19,8 @@ import { usePatient } from '../modules/contexts/PatientContext';
 import { useSchedule } from '../modules/contexts/ScheduleContext';
 import { Audio } from 'expo-av';
 import { useContacts } from '../modules/contexts/ContactsContext';
+import { useVoiceAssistant } from '../modules/contexts/VoiceAssistantContext';
+import { getDueReminders } from '../modules/core/utils/reminders';
 
 export default function MyDayScreen() {
   const { currentTheme, currentTextScale, calmMode, scaleText, getCalmModeStyles, getCalmModeTextColor } = useTheme();
@@ -33,6 +35,7 @@ export default function MyDayScreen() {
   const [stepsModalVisible, setStepsModalVisible] = useState(false);
   const [currentSteps, setCurrentSteps] = useState<any[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const { speak } = useVoiceAssistant();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -129,6 +132,100 @@ export default function MyDayScreen() {
     return undefined;
   };
 
+  // Enhanced contextual reminder message
+  const buildReminderMessage = (item) => {
+    const hour = currentTime.getHours();
+    let greeting = 'Hello';
+    if (hour < 12) greeting = 'Good morning';
+    else if (hour < 18) greeting = 'Good afternoon';
+    else greeting = 'Good evening';
+    const patientName = patient.name;
+    const activityTime = formatTime(new Date(`${item.date}T${item.time}`));
+    const activity = item.activityName || 'your activity';
+    let caregiverName = '';
+    if (item.assignedContact) {
+      const caregiver = contacts.find(c => c.id === item.assignedContact);
+      if (caregiver) caregiverName = caregiver.name;
+    }
+    let msg = `${greeting}, ${patientName}! It's ${activityTime}, time for ${activity.toLowerCase()}.`;
+    if (caregiverName) msg += ` ${caregiverName} will be here soon.`;
+    return msg;
+  };
+
+  // --- Helper functions for enhanced greeting ---
+  const getSeason = (date: Date) => {
+    const month = date.getMonth() + 1;
+    if (month === 12 || month === 1 || month === 2) return 'winter';
+    if (month >= 3 && month <= 5) return 'spring';
+    if (month >= 6 && month <= 8) return 'summer';
+    return 'fall';
+  };
+
+  const getHoliday = (date: Date) => {
+    const y = date.getFullYear();
+    const m = date.getMonth() + 1;
+    const d = date.getDate();
+    // Demo: only a few major US holidays
+    if (m === 1 && d === 1) return "New Year's Day";
+    if (m === 7 && d === 4) return "Independence Day";
+    // Thanksgiving: 4th Thursday of November
+    if (m === 11) {
+      const thursdays = Array.from({length: 30}, (_, i) => new Date(y, 10, i+1)).filter(dt => dt.getDay() === 4);
+      if (d === thursdays[3].getDate()) return 'Thanksgiving';
+    }
+    if (m === 12 && d === 25) return 'Christmas';
+    return null;
+  };
+
+  const getWeatherString = () => {
+    // Mock: could be replaced with real API
+    if (patient.location) return `It's a beautiful day in ${patient.location}.`;
+    return '';
+  };
+
+  const getSeasonalContext = (season: string) => {
+    switch (season) {
+      case 'spring': return "It's spring and the flowers are blooming.";
+      case 'summer': return "It's summer and the days are warm.";
+      case 'fall': return "It's fall and the leaves are turning colors.";
+      case 'winter': return "It's winter and it might be chilly outside.";
+      default: return '';
+    }
+  };
+
+  const getGreetingStyle = () => {
+    // Only use greetingStyle if it exists
+    if (patient.preferences && 'greetingStyle' in patient.preferences && patient.preferences.greetingStyle) {
+      // @ts-ignore
+      return patient.preferences.greetingStyle;
+    }
+    return 'friendly';
+  };
+
+  const buildGreeting = () => {
+    const greeting = getGreeting();
+    const name = patient.name;
+    const dateStr = formatDate(currentTime);
+    const weather = getWeatherString();
+    const season = getSeason(currentTime);
+    const seasonContext = getSeasonalContext(season);
+    const holiday = getHoliday(currentTime);
+    const style = getGreetingStyle();
+    let base = '';
+    if (style === 'formal') {
+      base = `${greeting}, ${name}. Today is ${dateStr}. ${weather} ${seasonContext}`;
+    } else if (style === 'cheerful') {
+      base = `${greeting}, ${name}! ${weather} ${seasonContext} Today is ${dateStr}.`;
+    } else {
+      // friendly (default)
+      base = `${greeting}, ${name}! Today is ${dateStr}. ${weather} ${seasonContext}`;
+    }
+    if (holiday) base += ` Happy ${holiday}!`;
+    return base.trim();
+  };
+
+  const dueReminders = getDueReminders({ scheduleEntries: todayEntries, patient, contacts, now: currentTime });
+
   const styles = createStyles(currentTheme, scaleText, calmMode, currentTextScale);
 
   return (
@@ -139,14 +236,6 @@ export default function MyDayScreen() {
           <View style={styles.timeWrapper}>
             <Text style={[styles.time, { color: getCalmModeTextColor() }]}>{formatTime(currentTime)}</Text>
           </View>
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={[styles.greeting, { color: getCalmModeTextColor(), fontSize: scaleText(28), fontWeight: '700', marginBottom: scaleText(2) }]}> 
-              {getGreeting()}, {patient.name}!
-            </Text>
-            <Text style={[styles.date, { color: calmMode ? '#B0B0B0' : currentTheme.colors.primary, fontSize: scaleText(18), fontWeight: '600' }]}> 
-              Today is {formatDate(currentTime)}
-            </Text>
-          </View>
         </View>
       </View>
       <Animated.ScrollView 
@@ -154,6 +243,40 @@ export default function MyDayScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Show due reminders at the top of scroll content */}
+        {dueReminders.length > 0 && (
+          <View style={{ marginBottom: scaleText(16) }}>
+            {dueReminders.map((rem, idx) => (
+              <View key={idx} style={styles.reminderBanner}>
+                <Text style={[styles.reminderText, { color: getCalmModeTextColor(), fontSize: scaleText(18), fontWeight: '600', textAlign: 'center' }]}>{rem.message}</Text>
+                <TouchableOpacity
+                  onPress={() => speak(rem.message)}
+                  style={{ marginTop: 4, alignSelf: 'center', flexDirection: 'row', alignItems: 'center' }}
+                  accessibilityLabel={`Hear reminder: ${rem.message}`}
+                  accessibilityRole="button"
+                >
+                  <Feather name="volume-2" size={scaleText(18)} color={currentTheme.colors.primary} />
+                  <Text style={{ color: currentTheme.colors.primary, fontSize: scaleText(14), fontWeight: '600', marginLeft: 6 }}>Hear Reminder</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+        {/* Greeting banner at the top of scroll content */}
+        <View style={styles.greetingBanner}>
+          <Text style={[styles.greeting, { color: getCalmModeTextColor(), fontSize: scaleText(28), fontWeight: '700', marginBottom: scaleText(2), textAlign: 'center' }]}> 
+            {buildGreeting()}
+          </Text>
+          <TouchableOpacity
+            onPress={() => speak(buildGreeting())}
+            style={{ marginTop: 4, alignSelf: 'center', flexDirection: 'row', alignItems: 'center' }}
+            accessibilityLabel="Read greeting aloud"
+            accessibilityRole="button"
+          >
+            <Feather name="volume-2" size={scaleText(22)} color={currentTheme.colors.primary} />
+            <Text style={{ color: currentTheme.colors.primary, fontSize: scaleText(14), fontWeight: '600', marginLeft: 6 }}>Hear Greeting</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.scheduleSection}>
           <Text style={[styles.sectionTitle, { color: getCalmModeTextColor() }]}>Today's Schedule</Text>
           {todayEntries.map((item) => {
@@ -167,21 +290,30 @@ export default function MyDayScreen() {
               }
             }
             const steps = getStepsForItem(item);
+            const reminderMsg = buildReminderMessage(item);
             return (
-              <ScheduleCard
-                key={item.id}
-                title={item.activityName}
-                time={item.time}
-                image={''}
-                completed={false}
-                voicePromptUrl={item.voicePromptUrl}
-                onVoicePrompt={() => handleVoicePrompt(item.voicePromptUrl, item.activityName)}
-                caregiverPhoto={caregiverPhoto}
-                caregiverName={caregiverName}
-                reminderMessage={getReminderMessage(item)}
-                hasSteps={!!steps}
-                onShowSteps={() => handleShowSteps(item)}
-              />
+              <View key={item.id} style={{ marginBottom: scaleText(16) }}>
+                <ScheduleCard
+                  title={item.activityName}
+                  time={item.time}
+                  image={''}
+                  completed={false}
+                  caregiverPhoto={caregiverPhoto}
+                  caregiverName={caregiverName}
+                  reminderMessage={reminderMsg}
+                  hasSteps={!!steps}
+                  onShowSteps={() => handleShowSteps(item)}
+                />
+                <TouchableOpacity
+                  onPress={() => speak(reminderMsg)}
+                  style={{ marginTop: 4, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center' }}
+                  accessibilityLabel={`Hear reminder for ${item.activityName}`}
+                  accessibilityRole="button"
+                >
+                  <Feather name="volume-2" size={scaleText(18)} color={currentTheme.colors.primary} />
+                  <Text style={{ color: currentTheme.colors.primary, fontSize: scaleText(14), fontWeight: '600', marginLeft: 4 }}>Hear Reminder</Text>
+                </TouchableOpacity>
+              </View>
             );
           })}
         </View>
@@ -463,6 +595,41 @@ const createStyles = (theme: any, scaleText: (size: number) => number, calmMode:
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: scaleText(2),
+  },
+  greetingBanner: {
+    backgroundColor: calmMode ? 'rgba(255,255,255,0.08)' : theme.colors.surface,
+    borderRadius: scaleText(18),
+    marginHorizontal: scaleText(16),
+    marginTop: scaleText(12),
+    marginBottom: scaleText(8),
+    paddingVertical: scaleText(18),
+    paddingHorizontal: scaleText(12),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  reminderBanner: {
+    backgroundColor: calmMode ? 'rgba(255,255,255,0.10)' : theme.colors.surface,
+    borderRadius: scaleText(14),
+    marginHorizontal: scaleText(8),
+    marginTop: scaleText(8),
+    marginBottom: scaleText(8),
+    paddingVertical: scaleText(12),
+    paddingHorizontal: scaleText(10),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  reminderText: {
+    fontSize: scaleText(18),
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 

@@ -332,8 +332,7 @@ export default function CalmZoneScreen() {
     if (activity.type === 'game' && activity.id === 'mind-match-game') {
       router.push('/mind-match');
     } else if (activity.type === 'patterns' && activity.id === 'calm-patterns') {
-      // Fallback to home if /calm-patterns is not a valid route
-      router.push('/');
+      router.push('/calm-patterns'); // Fixed: navigate to calm-patterns screen
     } else if (activity.type === 'animation') {
       Alert.alert(
         activity.title,

@@ -1,5 +1,9 @@
 // Command handler interface and navigation command processor for the global voice assistant
 import { router } from 'expo-router';
+import { parseISO } from 'date-fns';
+import { ScheduleEntry } from '../../contexts/ScheduleContext';
+import { Contact } from '../../contexts/ContactsContext';
+import { Patient } from '../../contexts/PatientContext';
 
 export interface CommandHandler {
   pattern: RegExp | string[];
@@ -272,6 +276,112 @@ const accessibilityHandler: CommandHandler = {
   examples: ['activate accessibility', 'screen reader', 'high contrast', 'voice control'],
 };
 
+// --- BEGIN: Voice Prompt and Contextual Command Handlers ---
+
+// These should be replaced with real context in integration
+let lastReminderMessage = '';
+let lastTTSMessage = '';
+const ttsSpeak = (msg: string, opts?: any) => { lastTTSMessage = msg; /* real TTS here */ };
+const getScheduleEntries = (): ScheduleEntry[] => [];
+const getContacts = (): Contact[] => [];
+const getPatient = (): Patient => ({ name: 'User' } as Patient);
+const getNow = () => new Date();
+
+// Play message from [name]
+const playMessageFromHandler: CommandHandler = {
+  pattern: /^(play|listen to) (message|voice prompt|voice message) from ([a-zA-Z ]+)$/i,
+  async action({ match }) {
+    if (!match || !match[3]) return;
+    const name = match[3].trim().toLowerCase();
+    const contacts = getContacts();
+    const contact = contacts.find(c => c.name.toLowerCase() === name);
+    if (!contact) return ttsSpeak(`I couldn't find a contact named ${name}.`);
+    // Find latest voice prompt from this contact
+    const entries = getScheduleEntries();
+    const prompts = entries.flatMap(e => (e.voicePrompts || []).filter(p => p.contactId === contact.id));
+    if (prompts.length === 0) return ttsSpeak(`No voice messages from ${contact.name}.`);
+    // Play the latest
+    const latest = prompts.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))[0];
+    // TODO: Play audio at latest.uri
+    ttsSpeak(`Playing message from ${contact.name}.`);
+  },
+  description: 'Play the latest voice message from a contact',
+  examples: ['play message from Sarah', 'listen to voice prompt from Leo'],
+};
+
+// Repeat reminder
+const repeatReminderHandler: CommandHandler = {
+  pattern: /^(repeat|say again|repeat reminder)$/i,
+  async action() {
+    if (lastReminderMessage) ttsSpeak(lastReminderMessage);
+    else ttsSpeak('There is no recent reminder to repeat.');
+  },
+  description: 'Repeat the last reminder message',
+  examples: ['repeat', 'repeat reminder', 'say again'],
+};
+
+// Play voice prompt for [activity]
+const playPromptForActivityHandler: CommandHandler = {
+  pattern: /^(play|listen to) (voice prompt|message) for (.+)$/i,
+  async action({ match }) {
+    if (!match || !match[3]) return;
+    const activity = match[3].trim().toLowerCase();
+    const entries = getScheduleEntries();
+    const entry = entries.find(e => (e.activityName || '').toLowerCase().includes(activity));
+    if (!entry || !entry.voicePrompts || entry.voicePrompts.length === 0) return ttsSpeak(`No voice prompt found for ${activity}.`);
+    // Play the latest
+    const latest = entry.voicePrompts.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))[0];
+    // TODO: Play audio at latest.uri
+    ttsSpeak(`Playing voice prompt for ${entry.activityName}.`);
+  },
+  description: 'Play the voice prompt for a specific activity',
+  examples: ['play voice prompt for breakfast', 'listen to message for walk'],
+};
+
+// What's my schedule for today?
+const scheduleTodayHandler: CommandHandler = {
+  pattern: /^(what('|’)s|show|view|see) (my )?(schedule|appointments|events)( for today)?\??$/i,
+  async action() {
+    const entries = getScheduleEntries();
+    if (!entries.length) return ttsSpeak('You have no scheduled activities today.');
+    const lines = entries.map(e => `${e.activityName} at ${e.time}`);
+    ttsSpeak(`Today's schedule: ${lines.join(', ')}.`);
+  },
+  description: 'List today’s schedule',
+  examples: ["what's my schedule for today?", 'show my appointments'],
+};
+
+// Who's coming to visit?
+const whoIsComingHandler: CommandHandler = {
+  pattern: /^(who('|’)s|who is) (coming|visiting|coming to visit)\??$/i,
+  async action() {
+    const entries = getScheduleEntries();
+    const contacts = getContacts();
+    const visitors = entries
+      .filter(e => e.assignedContact)
+      .map(e => contacts.find(c => c.id === e.assignedContact)?.name)
+      .filter(Boolean);
+    if (!visitors.length) return ttsSpeak('No one is scheduled to visit today.');
+    ttsSpeak(`Today, ${visitors.join(' and ')} will be visiting.`);
+  },
+  description: 'List today’s visitors',
+  examples: ["who's coming to visit?", 'who is visiting?'],
+};
+
+// Show family speed dial photos command handler
+const showFamilyPhotosHandler: CommandHandler = {
+  pattern: /^(show( me)? (my )?(family )?(photos|speed dial( photos)?|favorite contacts)|who can i call\??)$/i,
+  async action() {
+    // Navigate to contacts screen; optionally, pass a param or set a global state for speed dial mode
+    router.push('/contacts');
+    // TODO: Optionally trigger speed dial mode in contacts screen (e.g., via context or navigation param)
+    // For now, just navigate to contacts
+  },
+  description: 'Show large photo-based speed dials for family contacts',
+  examples: ['show me my family photos', 'show speed dial photos', 'who can I call?', 'show my favorite contacts'],
+};
+// --- END: Voice Prompt and Contextual Command Handlers ---
+
 export const commandHandlers: CommandHandler[] = [
   navigationHandler,
   goBackHandler,
@@ -298,6 +408,12 @@ export const commandHandlers: CommandHandler[] = [
   contextAwareSuggestionHandler,
   errorHandlingHandler,
   accessibilityHandler,
+  playMessageFromHandler,
+  repeatReminderHandler,
+  playPromptForActivityHandler,
+  scheduleTodayHandler,
+  whoIsComingHandler,
+  showFamilyPhotosHandler, // <-- Add here
   // Add more handlers here
 ];
 
@@ -320,4 +436,4 @@ export async function processVoiceCommand(input: string): Promise<{ handled: boo
     }
   }
   return { handled: false };
-} 
+}
